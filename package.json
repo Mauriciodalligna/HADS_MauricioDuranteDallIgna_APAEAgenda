@@ -4,10 +4,14 @@
   "description": "Sistema de agenda para APAE",
   "main": "index.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0 -p %PORT%",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start -H 0.0.0.0 -p %PORT%",
+    "lint": "next lint",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:undo": "sequelize-cli db:migrate:undo",
+    "db:undo:all": "sequelize-cli db:migrate:undo:all",
+    "db:seed": "sequelize-cli db:seed:all"
   },
   "keywords": [
     "apae",
@@ -32,5 +36,8 @@
     "react-big-calendar": "^1.11.4",
     "react-dom": "^18.3.1",
     "sequelize": "^6.35.1"
+  },
+  "devDependencies": {
+    "sequelize-cli": "^6.6.3"
   }
 }
