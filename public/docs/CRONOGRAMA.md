@@ -1,236 +1,286 @@
-### Dia 1 (2h)
+📅 Cronograma atualizado (desenvolvimento iterativo por feature)
+🧩 Semana 1 – Setup inicial
 
-- Criar repositório GitHub e README inicial
-- Criar projeto com Next.js (frontend e backend juntos)
-- Instalar dependências iniciais (Sequelize, PostgreSQL, dotenv, etc.)
+Dia 1 (2h)
 
-### Dia 2 (2h)
+Criar repositório GitHub e README inicial
 
-- Criar `.env` e configurar variáveis (banco, porta, JWT_SECRET)
-- Configurar Sequelize (conexão e estrutura de pastas)
-- Testar conexão com banco local (PostgreSQL)
+Criar projeto com Next.js (frontend + API juntos)
 
-### Dia 3 (2h)
+Instalar dependências iniciais (Sequelize, PostgreSQL, bcrypt, JWT, dotenv, etc.)
 
-- Criar primeiras migrations: `usuario`, `aluno`
-- Rodar migrations e validar estrutura no banco
-- Configurar scripts `dev` e `start`
+Dia 2 (2h)
 
-### Dia 4 (2h)
+Criar .env e configurar variáveis (banco, porta, JWT_SECRET)
 
-- Criar rotas básicas e teste de API (`/ping`, `/api/test`)
-- Refatorar organização do backend (pasta `controllers`, `models`, `routes`)
+Configurar Sequelize (conexão e estrutura de pastas)
 
----
+Testar conexão com banco local (PostgreSQL)
 
-## 🧩 Semana 2 – 23 a 29 de Setembro (Autenticação e JWT)
+Dia 3 (2h)
 
-### Dia 1 (2h)
+Criar migrations iniciais: usuario
 
-- Criar controller de autenticação: `/login`, `/register`
-- Criar hash e verificação de senha com **bcrypt**
+Criar model usuario e rodar migration
 
-### Dia 2 (2h)
+Validar tabela criada no banco
 
-- Gerar token JWT no login
-- Criar middleware `auth` para proteger rotas privadas
+Dia 4 (2h)
 
-### Dia 3 (2h)
+Criar rota básica /api/ping
 
-- Criar middleware de verificação por perfil (`gestor`, `profissional`, etc.)
-- Criar função de logout (opcional)
+Configurar pastas (controllers, routes, models)
 
-### Dia 4 (2h)
+Testar rota com Postman
 
-- Criar rota para recuperar senha (gerar token temporário)
-- Documentar autenticação com exemplos (Postman)
+🧩 Semana 2 – Autenticação + Tela de Login
 
----
+Dia 1 (2h)
 
-## 🧩 Semana 3 – 30 Setembro a 6 Outubro (Usuários e Perfis)
+Criar controller de autenticação: /api/auth/login e /api/auth/register
 
-### Dia 1 (2h)
+Implementar hash e verificação de senha com bcrypt
 
-- Criar model `usuario` com CRUD
-- Implementar cadastro de usuários com perfil
+Testar login e cadastro no Postman
 
-### Dia 2 (2h)
+Dia 2 (2h)
 
-- Listagem de usuários (apenas gestor pode ver todos)
-- Detalhes e filtros básicos (por nome ou perfil)
+Gerar token JWT no login
 
-### Dia 3 (2h)
+Criar middleware auth para rotas privadas
 
-- Atualização de dados (nome, perfil, status)
-- Validação para evitar e-mails duplicados
+Testar no Postman rota protegida /api/auth/profile
 
-### Dia 4 (2h)
+Dia 3 (2h)
 
-- Criação da tela de login e cadastro com Material UI (básico)
-- Testar login com redirecionamento conforme perfil
+Middleware de RBAC (roles: gestor, profissional, secretaria)
 
----
+Validar acessos no Postman
 
-## 🧩 Semana 4 – 7 a 13 Outubro (Alunos)
+Dia 4 (2h)
 
-### Dia 1 (2h)
+Criar tela de Login (Material UI)
 
-- Criar model `aluno`
-- Criar rota de cadastro e validações de campos obrigatórios
+Conectar com API /login e redirecionar por perfil
 
-### Dia 2 (2h)
+🧩 Semana 3 – Usuários (Gestão de Perfis)
 
-- Implementar listagem com filtros (nome, turma, turno)
-- Criar relação com profissionais e atividades (referências)
+Dia 1 (2h)
 
-### Dia 3 (2h)
+Migration + model usuario (completo: nome, email, senha, perfil, status)
 
-- Tela de formulário de aluno (Material UI)
-- Tela de listagem com filtros básicos
+CRUD no backend (/api/usuarios)
 
-### Dia 4 (2h)
+Testar via Postman
 
-- Validação de duplicidade (nome + turma)
-- Status ativo/inativo com inativação lógica
+Dia 2 (2h)
 
----
+Criar tela de cadastro de usuários (Material UI)
 
-## 🧩 Semana 5 – 14 a 20 Outubro (Profissionais)
+Validar cadastro com API
 
-### Dia 1 (2h)
+Dia 3 (2h)
 
-- Criar model `profissional`
-- Criar controller e rotas para cadastrar e listar
+Criar tela de listagem de usuários (somente gestor vê todos)
 
-### Dia 2 (2h)
+Testar filtros (nome, perfil)
 
-- Criar tela de cadastro e listagem
-- Filtro por setor ou nome
+Dia 4 (2h)
 
-### Dia 3 (2h)
+Implementar atualização e exclusão lógica (status ativo/inativo)
 
-- Criar tabela `disponibilidade`
-- Criar CRUD de horários por dia da semana
+Testar no Postman + UI integrada
 
-### Dia 4 (2h)
+🧩 Semana 4 – Alunos
 
-- Tela de interface para escolher horários disponíveis
-- Validar horários sobrepostos
+Dia 1 (2h)
 
-## Semana 6 – 21 a 27 Outubro (Atividades)
+Migration + model aluno
 
-### Dia 1 (2h)
+CRUD /api/alunos no backend
 
-- Criar model `atividade` com tipo, cor, duração padrão
-- Criar rota de cadastro e listagem
+Testar via Postman
 
-### Dia 2 (2h)
+Dia 2 (2h)
 
-- Tela de cadastro com seleção de tipo e cor (Material UI)
-- Tela de listagem com filtro por tipo
+Tela de cadastro de aluno (Material UI)
 
-### Dia 3 (2h)
+Validações básicas de formulário
 
-- Criar validação de status ativo/inativo
-- Relacionar atividades aos agendamentos (prévia)
+Dia 3 (2h)
 
-### Dia 4 (2h)
+Tela de listagem de alunos com filtros (nome, turma, turno)
 
-- Testar vínculos com alunos/profissionais
-- Ajustes finos no CRUD e filtros
+Conectar com API
 
----
+Dia 4 (2h)
 
-## 🧩 Semana 7 – 28 Outubro a 3 Novembro (Agendamentos)
+Validação de duplicidade (nome + turma)
 
-### Dia 1 (2h)
+Testar via Postman + UI
 
-- Criar model `agendamento` com relações entre aluno, profissional, atividade
-- Criar rota para criar agendamento
+🧩 Semana 5 – Profissionais + Disponibilidade
 
-### Dia 2 (2h)
+Dia 1 (2h)
 
-- Validar conflitos de horário com base na disponibilidade
-- Validação de sobreposição de horários
+Migration + model profissional
 
-### Dia 3 (2h)
+CRUD backend /api/profissionais
 
-- Criar tela de criação de agendamento com calendário simples
-- Permitir selecionar aluno, profissional e atividade
+Testar via Postman
 
-### Dia 4 (2h)
+Dia 2 (2h)
 
-- Testes de lógica e validações no backend
-- Refatoração do código para clareza e reuso
+Tela de cadastro de profissional
 
----
+Tela de listagem com filtros (nome, setor)
 
-## 🧩 Semana 8 – 4 a 10 Novembro (Visualização de Agenda)
+Dia 3 (2h)
 
-### Dia 1 (2h)
+Migration + model disponibilidade
 
-- Instalar e configurar **React Big Calendar** ou **FullCalendar**
-- Criar componente visual de calendário semanal
+CRUD de horários de disponibilidade
 
-### Dia 2 (2h)
+Testar via Postman
 
-- Visualizar agenda por aluno
-- Mostrar nome do profissional e atividade na célula
+Dia 4 (2h)
 
-### Dia 3 (2h)
+Tela de interface para cadastrar horários disponíveis
 
-- Visualizar agenda por profissional
-- Mostrar nome do aluno e tipo de atividade
+Validação anti-sobreposição
 
-### Dia 4 (2h)
+🧩 Semana 6 – Atividades
 
-- Filtros por data, turno, tipo de atividade
-- Validação de navegação entre semanas
+Dia 1 (2h)
 
----
+Migration + model atividade
 
-## 🧩 Semana 9 – 11 a 17 Novembro (Mural de Avisos + Painel do Gestor)
+CRUD /api/atividades
 
-### Dia 1 (2h)
+Testar via Postman
 
-- Criar model `mural_avisos` e rotas para criar e listar
-- Filtro por setor e data de expiração
+Dia 2 (2h)
 
-### Dia 2 (2h)
+Tela de cadastro de atividade (tipo, cor, duração)
 
-- Tela de publicação de aviso (Material UI)
-- Tela de visualização por setor
+Tela de listagem com filtros
 
-### Dia 3 (2h)
+Dia 3 (2h)
 
-- Início do **Painel do Gestor**: contagem de agendamentos, alunos ativos
-- Listagem de profissionais com disponibilidade
+Validar status ativo/inativo
 
-### Dia 4 (2h)
+Relacionar atividades aos agendamentos (prévia)
 
-- Criar logs simples de ações (rota e model `log_acao`)
-- Listagem no painel administrativo
+Dia 4 (2h)
 
----
+Testar vínculos com alunos e profissionais
 
-## 🧩 Semana 10 – 18 a 24 Novembro (Ajustes finais)
+Ajustes finos no CRUD
 
-### Dia 1 (2h)
+🧩 Semana 7 – Agendamentos
 
-- Exportar agenda para PDF com **jsPDF**
-- Botão "Gerar grade semanal por aluno"
+Dia 1 (2h)
 
-### Dia 2 (2h)
+Migration + model agendamento
 
-- Verificação de acessos por perfil (bloqueios frontend)
-- Proteção de rotas com base no JWT
+Criar rota /api/agendamentos (POST, GET)
 
-### Dia 3 (2h)
+Testar via Postman
 
-- Revisar código, componentes e reutilização
-- Criar tela de "Sobre" ou rodapé institucional
+Dia 2 (2h)
 
-### Dia 4 (2h)
+Validação de disponibilidade do profissional
 
-- Refatorar estrutura de pastas e comentários
-- Documentar endpoints e regras no README
+Anti-sobreposição de horários (Postman tests)
+
+Dia 3 (2h)
+
+Tela de criação de agendamento com calendário simples
+
+Seleção de aluno, profissional e atividade
+
+Dia 4 (2h)
+
+Testes completos no backend
+
+Ajustes de lógica no front
+
+🧩 Semana 8 – Agenda Semanal
+
+Dia 1 (2h)
+
+Instalar React Big Calendar / FullCalendar
+
+Criar calendário semanal
+
+Dia 2 (2h)
+
+Visualizar agenda por aluno
+
+Mostrar profissional e atividade na célula
+
+Dia 3 (2h)
+
+Visualizar agenda por profissional
+
+Mostrar aluno e atividade
+
+Dia 4 (2h)
+
+Filtros por data, turno, tipo de atividade
+
+Testar UI integrada com API
+
+🧩 Semana 9 – Mural de Avisos + Painel Gestor
+
+Dia 1 (2h)
+
+Migration + model mural_avisos
+
+CRUD backend /api/mural
+
+Testar no Postman
+
+Dia 2 (2h)
+
+Tela de publicação de aviso (Material UI)
+
+Tela de listagem por setor
+
+Dia 3 (2h)
+
+Painel do Gestor: contagem de agendamentos, alunos ativos
+
+Listagem de profissionais com disponibilidade
+
+Dia 4 (2h)
+
+Criar logs simples (log_acao) no backend
+
+Tela de visualização no painel
+
+🧩 Semana 10 – Ajustes Finais
+
+Dia 1 (2h)
+
+Exportar agenda para PDF (jsPDF)
+
+Botão “Gerar grade semanal por aluno”
+
+Dia 2 (2h)
+
+Proteção de rotas frontend com JWT e RBAC
+
+Testar acessos no Postman e no navegador
+
+Dia 3 (2h)
+
+Revisão de código, padronização de UI
+
+Criar tela de “Sobre”
+
+Dia 4 (2h)
+
+Documentar endpoints no README
+
+Checklist final de LGPD, segurança e responsividade

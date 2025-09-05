@@ -6,6 +6,7 @@ export { default as Agendamento } from "@/server/db/models/agendamento";
 export { default as MuralAvisos } from "@/server/db/models/mural_avisos";
 export { default as Disponibilidade } from "@/server/db/models/disponibilidade";
 export { default as LogAcao } from "@/server/db/models/log_acao";
+export { default as PasswordResetToken } from "@/server/db/models/password_reset_token";
 
 import Usuario from "@/server/db/models/usuario";
 import Aluno from "@/server/db/models/aluno";

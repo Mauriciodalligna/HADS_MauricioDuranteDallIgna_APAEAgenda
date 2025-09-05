@@ -10,6 +10,7 @@ export const Usuario = sequelize.define(
     senha: { type: DataTypes.STRING },
     perfil: { type: DataTypes.STRING },
     status: { type: DataTypes.BOOLEAN },
+    must_change_password: { type: DataTypes.BOOLEAN, defaultValue: false },
     criado_em: { type: DataTypes.DATE },
   },
   {

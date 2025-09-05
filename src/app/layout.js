@@ -3,11 +3,13 @@ export const metadata = {
   description: "Sistema de agenda da APAE",
 };
 
+import Providers from "./providers";
+
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
       <body style={{ fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
