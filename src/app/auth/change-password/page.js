@@ -32,7 +32,7 @@ export default function ChangePasswordPage() {
     }
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem("token")) || localStorage.getItem("token");
       const res = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: {
@@ -49,10 +49,11 @@ export default function ChangePasswordPage() {
       }
       setOkMsg("Senha alterada com sucesso.");
       // Atualiza flag local do usuário
-      const stored = localStorage.getItem("user");
+      const stored = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem("user")) || localStorage.getItem("user");
       if (stored) {
         const u = JSON.parse(stored);
         u.must_change_password = false;
+        try { sessionStorage.setItem("user", JSON.stringify(u)); } catch {}
         localStorage.setItem("user", JSON.stringify(u));
       }
       setLoading(false);

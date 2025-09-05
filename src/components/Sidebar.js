@@ -11,7 +11,7 @@ import GroupIcon from "@mui/icons-material/Group";
 import SchoolIcon from "@mui/icons-material/School";
 import EventNoteIcon from "@mui/icons-material/EventNote";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 const drawerWidth = 240;
 
@@ -26,6 +26,7 @@ const links = [
 
 export default function Sidebar({ open = true, onClose }) {
   const router = useRouter();
+  const pathname = usePathname();
   return (
     <Drawer
       variant="permanent"
@@ -39,7 +40,7 @@ export default function Sidebar({ open = true, onClose }) {
    >
       <List>
         {links.map((item) => (
-          <ListItemButton key={item.href} onClick={() => router.push(item.href)} aria-label={`Ir para ${item.label}`}>
+          <ListItemButton key={item.href} selected={pathname?.startsWith(item.href)} onClick={() => router.push(item.href)} aria-label={`Ir para ${item.label}`}>
             {item.icon ? <ListItemIcon>{item.icon}</ListItemIcon> : null}
             <ListItemText primary={item.label} />
           </ListItemButton>

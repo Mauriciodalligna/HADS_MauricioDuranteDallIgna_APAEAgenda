@@ -38,13 +38,17 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
+      try {
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("user", JSON.stringify(data.user));
+      } catch {}
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       if (data.user?.must_change_password) {
         router.push("/auth/change-password");
         return;
       }
-      const destino = data.user?.perfil === "gestor" ? "/admin" : "/dashboard";
+      const destino = "/dashboard";
       router.push(destino);
     } catch (e) {
       setError("Erro inesperado. Tente novamente.");
