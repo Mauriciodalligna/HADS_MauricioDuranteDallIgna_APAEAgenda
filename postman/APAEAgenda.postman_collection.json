@@ -279,6 +279,80 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Profissionais",
+      "item": [
+        {
+          "name": "Listar profissionais",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profissionais?nome=&setor=&status=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profissionais"],
+              "query": [
+                { "key": "nome", "value": "" },
+                { "key": "setor", "value": "" },
+                { "key": "status", "value": "" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar profissional",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Prof {{$randomFirstName}} {{$randomLastName}}\",\n  \"setor\": \"Saúde\",\n  \"especialidade\": \"Fisioterapia\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/profissionais", "host": ["{{baseUrl}}"], "path": ["api", "profissionais"] }
+          },
+          "response": [],
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const d = pm.response.json();",
+              "pm.test('Criar profissional OK', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); pm.expect(d.ok).to.be.true; });",
+              "if (d.profissional && d.profissional.id) { pm.environment.set('profId', d.profissional.id); }"
+            ] } }
+          ]
+        },
+        {
+          "name": "Atualizar profissional (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"setor\": \"Educação\",\n  \"especialidade\": \"Pedagogia\",\n  \"status\": true\n}" },
+            "url": { "raw": "{{baseUrl}}/api/profissionais/{{profId}}", "host": ["{{baseUrl}}"], "path": ["api", "profissionais", "{{profId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Desativar profissional (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/profissionais/{{profId}}", "host": ["{{baseUrl}}"], "path": ["api", "profissionais", "{{profId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Reativar profissional",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/profissionais/{{profId}}/reactivate", "host": ["{{baseUrl}}"], "path": ["api", "profissionais", "{{profId}}", "reactivate"] }
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

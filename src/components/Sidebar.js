@@ -21,6 +21,7 @@ const links = [
   { label: "Profissionais", href: "/profissionais", icon: <AssignmentIndIcon aria-hidden /> },
   { label: "Atividades", href: "/atividades", icon: <EventNoteIcon aria-hidden /> },
   { label: "Agenda", href: "/agenda/semanal", icon: <EventNoteIcon aria-hidden /> },
+  { label: "Disponibilidade", href: "/disponibilidades", icon: <EventNoteIcon aria-hidden /> },
   { label: "Usuários", href: "/usuarios", icon: <GroupIcon aria-hidden /> },
 ];
 
