@@ -1,0 +1,286 @@
+{
+  "info": {
+    "name": "APAEAgenda - Auth, Usuários, Alunos",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (gestor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{gestorEmail}}\",\n  \"senha\": \"{{gestorSenha}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "pm.test('Login OK', function () { pm.expect(pm.response.code).to.be.oneOf([200]); pm.expect(data.ok).to.be.true; });",
+                  "if (data.token) { pm.environment.set('token', data.token); } else { pm.environment.unset('token'); }",
+                  "if (data.user && data.user.id) { pm.environment.set('userId', data.user.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me (perfil autenticado)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "me"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Usuários",
+      "item": [
+        {
+          "name": "Listar usuários",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios?nome=&perfil=&status=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "usuarios"],
+              "query": [
+                { "key": "nome", "value": "" },
+                { "key": "perfil", "value": "" },
+                { "key": "status", "value": "" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar usuário",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Usuário Teste\",\n  \"email\": \"teste+{{$randomInt}}@apae.com\",\n  \"senha\": \"123456\",\n  \"perfil\": \"profissional\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "usuarios"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "pm.test('Criar usuário OK', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); pm.expect(d.ok).to.be.true; });",
+                  "if (d.user && d.user.id) { pm.environment.set('usuarioId', d.user.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Atualizar usuário (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Usuário Editado\",\n  \"perfil\": \"profissional\",\n  \"status\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "usuarios", "{{usuarioId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desativar usuário (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "usuarios", "{{usuarioId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reativar usuário",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}/reactivate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "usuarios", "{{usuarioId}}", "reactivate"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Alterar senha (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"novaSenha\": \"abc12345\",\n  \"exigirTroca\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}/password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "usuarios", "{{usuarioId}}", "password"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Alunos",
+      "item": [
+        {
+          "name": "Listar alunos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/alunos?nome=&turma=&turno=&cidade=&status=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alunos"],
+              "query": [
+                { "key": "nome", "value": "" },
+                { "key": "turma", "value": "" },
+                { "key": "turno", "value": "" },
+                { "key": "cidade", "value": "" },
+                { "key": "status", "value": "" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar aluno",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Aluno {{$randomFirstName}} {{$randomLastName}}\",\n  \"idade\": 10,\n  \"turma\": \"A1\",\n  \"turno\": \"manhã\",\n  \"cidade\": \"São Paulo\",\n  \"responsavel_nome\": \"Responsável {{$randomFirstName}}\",\n  \"responsavel_telefone\": \"(11) 99999-9999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/alunos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alunos"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "pm.test('Criar aluno OK', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); pm.expect(d.ok).to.be.true; });",
+                  "if (d.aluno && d.aluno.id) { pm.environment.set('alunoId', d.aluno.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Atualizar aluno (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"turma\": \"B2\",\n  \"turno\": \"tarde\",\n  \"status\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/alunos/{{alunoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alunos", "{{alunoId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desativar aluno (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/alunos/{{alunoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alunos", "{{alunoId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
+
+
