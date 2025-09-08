@@ -58,6 +58,15 @@
       ]
     },
     {
+      "name": "Atividades",
+      "item": [
+        { "name": "Listar atividades", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": { "raw": "{{baseUrl}}/api/atividades?nome=&tipo=&status=", "host": ["{{baseUrl}}"], "path": ["api","atividades"], "query": [ {"key":"nome","value":""},{"key":"tipo","value":""},{"key":"status","value":""} ] } }, "response": [] },
+        { "name": "Criar atividade", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ], "body": { "mode": "raw", "raw": "{\n  \"nome\": \"Fisioterapia\",\n  \"tipo\": \"Saúde\",\n  \"duracao_padrao\": 30,\n  \"cor\": \"#1976d2\"\n}" }, "url": { "raw": "{{baseUrl}}/api/atividades", "host": ["{{baseUrl}}"], "path": ["api","atividades"] } }, "response": [], "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [ "const d = pm.response.json();", "pm.test('Criar atividade OK', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); pm.expect(d.ok).to.be.true; });", "if (d.atividade && d.atividade.id) { pm.environment.set('atividadeId', d.atividade.id); }" ] } } ] },
+        { "name": "Atualizar atividade (PUT)", "request": { "method": "PUT", "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ], "body": { "mode": "raw", "raw": "{\n  \"tipo\": \"Educacional\",\n  \"duracao_padrao\": 45,\n  \"status\": true\n}" }, "url": { "raw": "{{baseUrl}}/api/atividades/{{atividadeId}}", "host": ["{{baseUrl}}"], "path": ["api","atividades","{{atividadeId}}"] } }, "response": [] },
+        { "name": "Desativar atividade (DELETE)", "request": { "method": "DELETE", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": { "raw": "{{baseUrl}}/api/atividades/{{atividadeId}}", "host": ["{{baseUrl}}"], "path": ["api","atividades","{{atividadeId}}"] } }, "response": [] }
+      ]
+    },
+    {
       "name": "Usuários",
       "item": [
         {
