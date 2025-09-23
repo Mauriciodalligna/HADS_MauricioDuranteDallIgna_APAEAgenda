@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
@@ -8,16 +8,33 @@ import Grid from "@mui/material/Grid";
 import FormInput from "@/components/FormInput";
 import CustomButton from "@/components/CustomButton";
 import { useRouter } from "next/navigation";
+import TextField from "@mui/material/TextField";
+import MenuItem from "@mui/material/MenuItem";
 
 export default function ProfissionaisCreatePage() {
   const router = useRouter();
   const [form, setForm] = useState({ nome: "", setor: "", especialidade: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [usuarios, setUsuarios] = useState([]);
 
   function updateField(field) {
     return (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
   }
+
+  useEffect(() => {
+    async function loadUsuarios() {
+      try {
+        setError("");
+        const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem("token")) || localStorage.getItem("token");
+        const res = await fetch(`/api/usuarios?perfil=profissional&status=true&limit=200`, { headers: { authorization: `Bearer ${token}` } });
+        const j = await res.json();
+        if (!res.ok || !j.ok) { setError(j?.error || "Falha ao carregar usuários profissionais"); return; }
+        setUsuarios(j.data || []);
+      } catch { setError("Erro ao carregar usuários profissionais"); }
+    }
+    loadUsuarios();
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -51,7 +68,11 @@ export default function ProfissionaisCreatePage() {
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
-            <FormInput label="Nome" value={form.nome} onChange={updateField("nome")} required />
+            <TextField select label="Usuário (profissional)" value={form.nome} onChange={updateField("nome")} fullWidth required>
+              {usuarios.map((u) => (
+                <MenuItem key={u.id} value={u.nome}>{u.nome}</MenuItem>
+              ))}
+            </TextField>
           </Grid>
           <Grid item xs={12} md={6}>
             <FormInput label="Setor" value={form.setor} onChange={updateField("setor")} />

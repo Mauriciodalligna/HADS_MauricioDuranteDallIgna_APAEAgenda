@@ -19,9 +19,7 @@ const links = [
   { label: "Dashboard", href: "/dashboard", icon: <DashboardIcon aria-hidden /> },
   { label: "Alunos", href: "/alunos", icon: <SchoolIcon aria-hidden /> },
   { label: "Profissionais", href: "/profissionais", icon: <AssignmentIndIcon aria-hidden /> },
-  { label: "Atividades", href: "/atividades", icon: <EventNoteIcon aria-hidden /> },
-  { label: "Agenda", href: "/agenda/semanal", icon: <EventNoteIcon aria-hidden /> },
-  { label: "Disponibilidade", href: "/disponibilidades", icon: <EventNoteIcon aria-hidden /> },
+  { label: "Agendamentos", href: "/agendamentos", icon: <EventNoteIcon aria-hidden /> },
   { label: "Usuários", href: "/usuarios", icon: <GroupIcon aria-hidden /> },
 ];
 

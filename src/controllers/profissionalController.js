@@ -1,5 +1,6 @@
 import { Op } from "sequelize";
 import Profissional from "@/server/db/models/profissional";
+import Usuario from "@/server/db/models/usuario";
 import LogAcao from "@/server/db/models/log_acao";
 
 function sanitizeProfissional(instance) {
@@ -26,6 +27,11 @@ export async function listar({ search = {}, pagination = {} }) {
 
 export async function criar({ adminId, nome, setor, especialidade, status = true }) {
   if (!nome) return { ok: false, status: 400, error: "nome é obrigatório" };
+  // Deve existir um usuário com mesmo nome e perfil profissional
+  const usuarioProf = await Usuario.findOne({ where: { nome: { [Op.iLike]: nome }, perfil: "profissional" } });
+  if (!usuarioProf) {
+    return { ok: false, status: 422, error: "É necessário existir um usuário com o mesmo nome e perfil 'profissional'" };
+  }
   const novo = await Profissional.create({
     nome,
     setor,
@@ -46,6 +52,13 @@ export async function criar({ adminId, nome, setor, especialidade, status = true
 export async function atualizar({ adminId, id, ...payload }) {
   const prof = await Profissional.findByPk(id);
   if (!prof) return { ok: false, status: 404, error: "Profissional não encontrado" };
+  // Se o nome for alterado, garantir vínculo com usuário
+  if (typeof payload.nome !== "undefined" && payload.nome !== prof.nome) {
+    const usuarioProf = await Usuario.findOne({ where: { nome: { [Op.iLike]: payload.nome }, perfil: "profissional" } });
+    if (!usuarioProf) {
+      return { ok: false, status: 422, error: "Não há usuário com esse nome e perfil 'profissional'" };
+    }
+  }
   Object.assign(prof, payload);
   await prof.save();
   await LogAcao.create({

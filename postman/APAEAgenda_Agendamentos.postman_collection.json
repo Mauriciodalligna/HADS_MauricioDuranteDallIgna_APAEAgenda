@@ -1,0 +1,403 @@
+{
+  "info": {
+    "name": "APAEAgenda - Agendamentos Completo",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (gestor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{gestorEmail}}\",\n  \"senha\": \"{{gestorSenha}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "pm.test('Login OK', function () { pm.expect(pm.response.code).to.be.oneOf([200]); pm.expect(data.ok).to.be.true; });",
+                  "if (data.token) { pm.environment.set('token', data.token); } else { pm.environment.unset('token'); }",
+                  "if (data.user && data.user.id) { pm.environment.set('userId', data.user.id); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Agendamentos",
+      "item": [
+        {
+          "name": "Listar agendamentos (todos)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos?limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos"],
+              "query": [
+                { "key": "limit", "value": "100" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar por profissional",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos?profissional_nome=Ana+Souza&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos"],
+              "query": [
+                { "key": "profissional_nome", "value": "Ana Souza" },
+                { "key": "limit", "value": "100" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar por aluno",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos?aluno_id=1&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos"],
+              "query": [
+                { "key": "aluno_id", "value": "1" },
+                { "key": "limit", "value": "100" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar por período",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos?data_ini=2025-01-01&data_fim=2025-01-31&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos"],
+              "query": [
+                { "key": "data_ini", "value": "2025-01-01" },
+                { "key": "data_fim", "value": "2025-01-31" },
+                { "key": "limit", "value": "100" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar agendamento simples",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profissional_nome\": \"Ana Souza\",\n  \"aluno_ids\": [1],\n  \"atividade\": {\n    \"id\": 1\n  },\n  \"data\": \"2025-01-15\",\n  \"hora_inicio\": \"09:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar agendamento com nova atividade",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profissional_nome\": \"Ana Souza\",\n  \"aluno_ids\": [1, 2],\n  \"atividade\": {\n    \"nome\": \"Fisioterapia Individual\",\n    \"tipo\": \"Fisioterapia\",\n    \"duracao_padrao\": 45,\n    \"cor\": \"#4caf50\"\n  },\n  \"data\": \"2025-01-15\",\n  \"hora_inicio\": \"10:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar agendamento recorrente",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profissional_nome\": \"Ana Souza\",\n  \"aluno_ids\": [1],\n  \"atividade\": {\n    \"id\": 1\n  },\n  \"data\": \"2025-01-15\",\n  \"hora_inicio\": \"14:00\",\n  \"recorrente\": true,\n  \"recorrencia_fim\": \"2025-03-15\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar sessão em grupo (mesmo slot)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profissional_nome\": \"Ana Souza\",\n  \"aluno_ids\": [3],\n  \"atividade\": {\n    \"id\": 1\n  },\n  \"data\": \"2025-01-15\",\n  \"hora_inicio\": \"09:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Tentar criar conflito (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profissional_nome\": \"Ana Souza\",\n  \"aluno_ids\": [1],\n  \"atividade\": {\n    \"id\": 1\n  },\n  \"data\": \"2025-01-15\",\n  \"hora_inicio\": \"09:30\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar agendamento",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": \"2025-01-16\",\n  \"hora_inicio\": \"10:30\",\n  \"aluno_ids\": [1, 2, 3]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos/{{agendamentoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos", "{{agendamentoId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancelar agendamento (apenas este)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo_cancelamento\": \"Aluno faltou\",\n  \"scope\": \"only\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos/{{agendamentoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos", "{{agendamentoId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancelar agendamento (futuros)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo_cancelamento\": \"Profissional de férias\",\n  \"scope\": \"future\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos/{{agendamentoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos", "{{agendamentoId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Exportar PDF - por profissional",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profissional_nome\": \"Ana Souza\",\n  \"semana_inicio\": \"2025-01-13\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos/export/pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos", "export", "pdf"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Exportar PDF - por aluno",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"aluno_id\": 1,\n  \"semana_inicio\": \"2025-01-13\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos/export/pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "agendamentos", "export", "pdf"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dados de Apoio",
+      "item": [
+        {
+          "name": "Listar profissionais",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profissionais?status=true&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profissionais"],
+              "query": [
+                { "key": "status", "value": "true" },
+                { "key": "limit", "value": "100" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar alunos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/alunos?status=true&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alunos"],
+              "query": [
+                { "key": "status", "value": "true" },
+                { "key": "limit", "value": "100" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar atividades",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/atividades?status=true&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "atividades"],
+              "query": [
+                { "key": "status", "value": "true" },
+                { "key": "limit", "value": "100" }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set agendamentoId from previous responses",
+          "if (pm.response && pm.response.json && pm.response.json().data && pm.response.json().data.id) {",
+          "  pm.environment.set('agendamentoId', pm.response.json().data.id);",
+          "}"
+        ]
+      }
+    }
+  ]
+}

@@ -363,6 +363,66 @@
         }
       ]
     }
+    ,
+    {
+      "name": "Agendamentos",
+      "item": [
+        {
+          "name": "Listar agendamentos",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos?profissional_id={{profId}}&data_inicio=&data_fim=&aluno_id=&atividade_id=&status=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","agendamentos"],
+              "query": [
+                { "key": "profissional_id", "value": "{{profId}}" },
+                { "key": "data_inicio", "value": "" },
+                { "key": "data_fim", "value": "" },
+                { "key": "aluno_id", "value": "" },
+                { "key": "atividade_id", "value": "" },
+                { "key": "status", "value": "" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar agendamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"aluno_id\": {{alunoId}},\n  \"profissional_id\": {{profId}},\n  \"atividade_id\": {{atividadeId}},\n  \"data\": \"2025-09-10\",\n  \"hora_inicio\": \"09:00\",\n  \"hora_fim\": \"09:30\",\n  \"status\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","agendamentos"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "pm.test('Criar agendamento OK', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); pm.expect(d.ok).to.be.true; });",
+                  "if (d.agendamento && d.agendamento.id) { pm.environment.set('agendamentoId', d.agendamento.id); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
   ]
 }
 

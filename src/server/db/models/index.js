@@ -3,8 +3,8 @@ export { default as Aluno } from "@/server/db/models/aluno";
 export { default as Profissional } from "@/server/db/models/profissional";
 export { default as Atividade } from "@/server/db/models/atividade";
 export { default as Agendamento } from "@/server/db/models/agendamento";
+export { default as AgendamentoAluno } from "@/server/db/models/agendamento_aluno";
 export { default as MuralAvisos } from "@/server/db/models/mural_avisos";
-export { default as Disponibilidade } from "@/server/db/models/disponibilidade";
 export { default as LogAcao } from "@/server/db/models/log_acao";
 export { default as PasswordResetToken } from "@/server/db/models/password_reset_token";
 
@@ -13,8 +13,8 @@ import Aluno from "@/server/db/models/aluno";
 import Profissional from "@/server/db/models/profissional";
 import Atividade from "@/server/db/models/atividade";
 import Agendamento from "@/server/db/models/agendamento";
+import AgendamentoAluno from "@/server/db/models/agendamento_aluno";
 import MuralAvisos from "@/server/db/models/mural_avisos";
-import Disponibilidade from "@/server/db/models/disponibilidade";
 import LogAcao from "@/server/db/models/log_acao";
 
 let associationsInitialized = false;
@@ -22,19 +22,17 @@ let associationsInitialized = false;
 export function initAssociations() {
   if (associationsInitialized) return;
 
-  // Agendamentos
-  Agendamento.belongsTo(Aluno, { foreignKey: "aluno_id" });
-  Aluno.hasMany(Agendamento, { foreignKey: "aluno_id" });
+  // Agendamentos N:N Aluno
+  Agendamento.belongsToMany(Aluno, { through: "agendamento_aluno", foreignKey: "agendamento_id", otherKey: "aluno_id" });
+  Aluno.belongsToMany(Agendamento, { through: "agendamento_aluno", foreignKey: "aluno_id", otherKey: "agendamento_id" });
 
   Agendamento.belongsTo(Profissional, { foreignKey: "profissional_id" });
   Profissional.hasMany(Agendamento, { foreignKey: "profissional_id" });
 
-  Agendamento.belongsTo(Atividade, { foreignKey: "atividade_id" });
+  Agendamento.belongsTo(Atividade, { as: "atividade", foreignKey: "atividade_id" });
   Atividade.hasMany(Agendamento, { foreignKey: "atividade_id" });
 
-  // Disponibilidade de profissionais
-  Disponibilidade.belongsTo(Profissional, { foreignKey: "profissional_id" });
-  Profissional.hasMany(Disponibilidade, { foreignKey: "profissional_id" });
+  // (Disponibilidade removida)
 
   // Mural de avisos
   MuralAvisos.belongsTo(Usuario, { foreignKey: "remetente_id" });
