@@ -1,5 +1,6 @@
 import { Op } from "sequelize";
 import { Agendamento, Profissional, Atividade, Aluno, AgendamentoAluno, LogAcao, initAssociations } from "@/server/db/models";
+import jsPDF from "jspdf";
 
 // Configurações da agenda
 const CONFIG = {
@@ -459,14 +460,17 @@ export async function cancelar(req, res) {
  */
 export async function exportarPDF(req, res) {
   try {
-    const { profissional_nome, aluno_id, semana_inicio } = req.body;
+    const { profissional_nome, aluno_id, semana_inicio, opcoes = {} } = req.body;
+    
+    console.log("Backend - Opções recebidas:", opcoes);
 
-    if (!profissional_nome && !aluno_id) {
-      return res.status(400).json({
-        ok: false,
-        error: "É necessário fornecer profissional_nome ou aluno_id"
-      });
-    }
+    // Removendo validação obrigatória - permitir exportar todos os agendamentos
+    // if (!profissional_nome && !aluno_id) {
+    //   return res.status(400).json({
+    //     ok: false,
+    //     error: "É necessário fornecer profissional_nome ou aluno_id"
+    //   });
+    // }
 
     // Calcular data fim da semana
     const dataInicio = new Date(semana_inicio);
@@ -514,17 +518,19 @@ export async function exportarPDF(req, res) {
     // Converter objetos Sequelize para JSON simples
     const agendamentosJSON = agendamentos.map(ag => ag.toJSON());
 
-    // TODO: Implementar geração de PDF
-    // Por enquanto, retornar dados estruturados
-    res.json({
-      ok: true,
-      data: {
-        periodo: { inicio: semana_inicio, fim: dataFim.toISOString().split('T')[0] },
-        agendamentos: agendamentosJSON,
-        total: agendamentosJSON.length
-      },
-      message: "Dados preparados para PDF (implementação pendente)"
+    // Gerar PDF
+    const pdf = gerarPDFAgenda(agendamentosJSON, {
+      periodo: { inicio: semana_inicio, fim: dataFim.toISOString().split('T')[0] },
+      filtro: profissional_nome ? `Profissional: ${profissional_nome}` : `Aluno ID: ${aluno_id}`,
+      opcoes: opcoes
     });
+
+    // Configurar headers para download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="agenda-${semana_inicio}.pdf"`);
+    
+    // Enviar PDF
+    res.send(pdf);
 
   } catch (error) {
     console.error("Erro ao exportar PDF:", error);
@@ -536,6 +542,277 @@ export async function exportarPDF(req, res) {
 }
 
 // Funções auxiliares
+
+/**
+ * Gerar PDF da agenda
+ */
+function gerarPDFAgenda(agendamentos, opcoes) {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let yPosition = 20;
+  
+  // Opções padrão
+  const config = {
+    incluirObservacoes: true,
+    incluirDetalhesAlunos: true,
+    incluirContatos: true,
+    agruparPorProfissional: false,
+    incluirEstatisticas: true,
+    ...opcoes.opcoes
+  };
+  
+  console.log("PDF - Configuração final:", config);
+
+  // Cabeçalho
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("AGENDA APAE", pageWidth / 2, yPosition, { align: "center" });
+  yPosition += 10;
+
+  // Período
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  const periodoTexto = `Período: ${formatarData(opcoes.periodo.inicio)} a ${formatarData(opcoes.periodo.fim)}`;
+  doc.text(periodoTexto, pageWidth / 2, yPosition, { align: "center" });
+  yPosition += 8;
+
+  // Filtro
+  doc.setFontSize(10);
+  doc.text(opcoes.filtro, pageWidth / 2, yPosition, { align: "center" });
+  yPosition += 15;
+
+  // Agrupar agendamentos por data ou profissional
+  let agendamentosAgrupados;
+  if (config.agruparPorProfissional) {
+    agendamentosAgrupados = agruparPorProfissionalEData(agendamentos);
+  } else {
+    agendamentosAgrupados = agruparPorData(agendamentos);
+  }
+
+  // Gerar conteúdo
+  if (config.agruparPorProfissional) {
+    // Agrupamento por profissional
+    Object.keys(agendamentosAgrupados).forEach(profissionalNome => {
+      // Verificar se precisa de nova página
+      if (yPosition > pageHeight - 40) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      // Nome do Profissional
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Profissional: ${profissionalNome}`, 20, yPosition);
+      yPosition += 8;
+
+      // Linha separadora
+      doc.setLineWidth(0.5);
+      doc.line(20, yPosition, pageWidth - 20, yPosition);
+      yPosition += 5;
+
+      // Agendamentos do profissional
+      Object.keys(agendamentosAgrupados[profissionalNome]).forEach(data => {
+        // Data
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text(`  ${formatarData(data)}`, 25, yPosition);
+        yPosition += 6;
+
+        // Agendamentos do dia
+        agendamentosAgrupados[profissionalNome][data].forEach(agendamento => {
+          yPosition = adicionarAgendamentoAoPDF(doc, agendamento, yPosition, pageHeight, config);
+        });
+
+        yPosition += 3; // Espaço entre dias
+      });
+
+      yPosition += 5; // Espaço entre profissionais
+    });
+  } else {
+    // Agrupamento por data (padrão)
+    Object.keys(agendamentosAgrupados).forEach(data => {
+      // Verificar se precisa de nova página
+      if (yPosition > pageHeight - 40) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      // Data
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(formatarData(data), 20, yPosition);
+      yPosition += 8;
+
+      // Linha separadora
+      doc.setLineWidth(0.5);
+      doc.line(20, yPosition, pageWidth - 20, yPosition);
+      yPosition += 5;
+
+      // Agendamentos do dia
+      agendamentosAgrupados[data].forEach(agendamento => {
+        yPosition = adicionarAgendamentoAoPDF(doc, agendamento, yPosition, pageHeight, config);
+      });
+
+      yPosition += 5; // Espaço entre dias
+    });
+  }
+
+  // Rodapé
+  const totalAgendamentos = agendamentos.length;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  
+  if (config.incluirEstatisticas) {
+    // Calcular estatísticas
+    const alunosUnicos = new Set();
+    const profissionaisUnicos = new Set();
+    let totalHoras = 0;
+    
+    agendamentos.forEach(ag => {
+      if (ag.alunos) {
+        ag.alunos.forEach(aluno => alunosUnicos.add(aluno.id));
+      }
+      if (ag.profissional) {
+        profissionaisUnicos.add(ag.profissional.id);
+      }
+      // Calcular horas (aproximado)
+      const inicio = ag.hora_inicio.split(':');
+      const fim = ag.hora_fim.split(':');
+      const horasInicio = parseInt(inicio[0]) + parseInt(inicio[1]) / 60;
+      const horasFim = parseInt(fim[0]) + parseInt(fim[1]) / 60;
+      totalHoras += horasFim - horasInicio;
+    });
+    
+    doc.text(`Total de agendamentos: ${totalAgendamentos}`, 20, pageHeight - 25);
+    doc.text(`Alunos únicos: ${alunosUnicos.size}`, 20, pageHeight - 20);
+    doc.text(`Profissionais: ${profissionaisUnicos.size}`, 20, pageHeight - 15);
+    doc.text(`Horas de atendimento: ${totalHoras.toFixed(1)}h`, 20, pageHeight - 10);
+  } else {
+    doc.text(`Total de agendamentos: ${totalAgendamentos}`, 20, pageHeight - 10);
+  }
+  
+  doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 60, pageHeight - 10, { align: "right" });
+
+  return doc.output('arraybuffer');
+}
+
+/**
+ * Agrupar agendamentos por data
+ */
+function agruparPorData(agendamentos) {
+  return agendamentos.reduce((grupos, agendamento) => {
+    const data = agendamento.data;
+    if (!grupos[data]) {
+      grupos[data] = [];
+    }
+    grupos[data].push(agendamento);
+    return grupos;
+  }, {});
+}
+
+/**
+ * Agrupar agendamentos por profissional e data
+ */
+function agruparPorProfissionalEData(agendamentos) {
+  return agendamentos.reduce((grupos, agendamento) => {
+    const profissionalNome = agendamento.profissional?.nome || 'Sem Profissional';
+    const data = agendamento.data;
+    
+    if (!grupos[profissionalNome]) {
+      grupos[profissionalNome] = {};
+    }
+    if (!grupos[profissionalNome][data]) {
+      grupos[profissionalNome][data] = [];
+    }
+    grupos[profissionalNome][data].push(agendamento);
+    return grupos;
+  }, {});
+}
+
+/**
+ * Adicionar agendamento ao PDF com base nas opções
+ */
+function adicionarAgendamentoAoPDF(doc, agendamento, yPosition, pageHeight, config) {
+  // Verificar se precisa de nova página
+  if (yPosition > pageHeight - 30) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
+  // Horário
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${agendamento.hora_inicio} - ${agendamento.hora_fim}`, 25, yPosition);
+
+  // Profissional (se não estiver agrupado por profissional)
+  if (!config.agruparPorProfissional) {
+    doc.setFont("helvetica", "normal");
+    doc.text(`Profissional: ${agendamento.profissional?.nome || 'N/A'}`, 80, yPosition);
+    yPosition += 5;
+  }
+
+  // Atividade
+  doc.text(`Atividade: ${agendamento.atividade?.nome || 'N/A'}`, 80, yPosition);
+  yPosition += 5;
+
+  // Alunos
+  if (agendamento.alunos && agendamento.alunos.length > 0) {
+    const nomesAlunos = agendamento.alunos.map(aluno => aluno.nome).join(", ");
+    doc.text(`Alunos: ${nomesAlunos}`, 80, yPosition);
+    yPosition += 5;
+
+    // Detalhes dos alunos (se habilitado)
+    if (config.incluirDetalhesAlunos) {
+      agendamento.alunos.forEach(aluno => {
+        doc.setFontSize(8);
+        doc.text(`  - ${aluno.nome} (${aluno.idade || 'N/A'} anos, Turma: ${aluno.turma || 'N/A'})`, 85, yPosition);
+        yPosition += 4;
+        
+        // Contatos (se habilitado)
+        if (config.incluirContatos) {
+          if (aluno.responsavel_telefone) {
+            doc.text(`    Contato: ${aluno.responsavel_telefone}`, 90, yPosition);
+          } else {
+            doc.text(`    Contato: (não informado)`, 90, yPosition);
+          }
+          yPosition += 4;
+        }
+      });
+      doc.setFontSize(10);
+    }
+  } else {
+    doc.text(`Alunos: (sem alunos)`, 80, yPosition);
+    yPosition += 5;
+  }
+
+  // Observações (se habilitado)
+  if (config.incluirObservacoes) {
+    if (agendamento.observacoes) {
+      doc.text(`Obs: ${agendamento.observacoes}`, 80, yPosition);
+      yPosition += 5;
+    } else {
+      doc.text(`Obs: (sem observações)`, 80, yPosition);
+      yPosition += 5;
+    }
+  }
+
+  yPosition += 3; // Espaço entre agendamentos
+  return yPosition;
+}
+
+/**
+ * Formatar data para exibição
+ */
+function formatarData(data) {
+  const date = new Date(data);
+  return date.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+}
 
 /**
  * Calcular hora de fim baseada na duração da atividade

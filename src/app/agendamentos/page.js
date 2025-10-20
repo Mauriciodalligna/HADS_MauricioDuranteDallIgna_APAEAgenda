@@ -51,6 +51,16 @@ export default function AgendamentosPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState("week");
   
+  // Estado para semana selecionada para exportação
+  const [selectedWeekForExport, setSelectedWeekForExport] = useState(() => {
+    // Inicializar com a segunda-feira da semana atual
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    return monday.toISOString().split('T')[0];
+  });
+  
   // Estado para próximos agendamentos
   const [proximosAgendamentos, setProximosAgendamentos] = useState([]);
 
@@ -79,6 +89,17 @@ export default function AgendamentosPage() {
   // Modal de cancelamento
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelForm, setCancelForm] = useState({ motivo: "", tipo: "only" });
+  
+  // Modal de exportação PDF
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportOptions, setExportOptions] = useState({
+    incluirObservacoes: true,
+    incluirDetalhesAlunos: true,
+    incluirContatos: true,
+    agruparPorProfissional: false,
+    incluirEstatisticas: true,
+    formato: "semanal" // semanal, mensal, personalizado
+  });
 
   const token = useMemo(() => {
     const sessionToken = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem("token") : null;
@@ -97,6 +118,14 @@ export default function AgendamentosPage() {
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function formatWeekPeriod(weekStart) {
+    const start = new Date(weekStart);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    
+    return `${start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} a ${end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
   }
 
   async function loadOptions() {
@@ -358,11 +387,14 @@ export default function AgendamentosPage() {
 
     try {
       setLoading(true);
+      setError("");
+      setSuccess("");
       
       const payload = {
         profissional_nome: filters.profissional_nome || null,
         aluno_id: filters.aluno_id || null,
-        semana_inicio: formatDateInput(new Date())
+        semana_inicio: selectedWeekForExport,
+        opcoes: exportOptions
       };
       
       const res = await fetch(`/api/agendamentos/export/pdf`, {
@@ -374,16 +406,40 @@ export default function AgendamentosPage() {
         body: JSON.stringify(payload),
       });
       
-      const j = await res.json();
-      
-      if (!res.ok || !j.ok) { 
-        setError(j?.error || "Erro ao exportar PDF"); 
-        return; 
+      if (!res.ok) {
+        const errorData = await res.json();
+        setError(errorData?.error || "Erro ao exportar PDF");
+        return;
       }
       
-      setSuccess("Dados preparados para PDF (implementação pendente)");
-    } catch {
-      setError("Erro inesperado");
+      // Verificar se a resposta é um PDF
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/pdf')) {
+        // Criar blob e fazer download
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `agenda-semana-${payload.semana_inicio}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        setSuccess("PDF exportado com sucesso!");
+        setExportModalOpen(false);
+      } else {
+        // Se não for PDF, tentar ler como JSON (para erros)
+        const j = await res.json();
+        if (!j.ok) {
+          setError(j?.error || "Erro ao exportar PDF");
+        } else {
+          setSuccess("Dados preparados para PDF");
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      setError("Erro inesperado ao exportar PDF");
     } finally {
       setLoading(false);
     }
@@ -563,7 +619,7 @@ export default function AgendamentosPage() {
 
         <Button 
           variant="contained" 
-          onClick={handleExportPDF}
+          onClick={() => setExportModalOpen(true)}
           disabled={loading}
           sx={{ ml: "auto" }}
         >
@@ -1332,6 +1388,288 @@ export default function AgendamentosPage() {
           >
             {loading ? "Cancelando..." : "Confirmar Cancelamento"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de Exportação PDF */}
+      <Dialog open={exportModalOpen} onClose={() => setExportModalOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>
+          Exportar Agenda em PDF
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Grid container spacing={3}>
+            {/* Seleção de Semana */}
+            <Grid item xs={12}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h6" gutterBottom color="primary">
+                    📅 Período da Exportação
+                  </Typography>
+                  
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <TextField
+                      type="date"
+                      label="Semana para Exportação"
+                      value={selectedWeekForExport}
+                      onChange={(e) => {
+                        // Garantir que sempre seja uma segunda-feira
+                        const selectedDate = new Date(e.target.value);
+                        const dayOfWeek = selectedDate.getDay();
+                        const monday = new Date(selectedDate);
+                        monday.setDate(selectedDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+                        setSelectedWeekForExport(monday.toISOString().split('T')[0]);
+                      }}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                      helperText={`Período: ${formatWeekPeriod(selectedWeekForExport)}`}
+                    />
+                    
+                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          const currentWeek = new Date(selectedWeekForExport);
+                          currentWeek.setDate(currentWeek.getDate() - 7);
+                          setSelectedWeekForExport(currentWeek.toISOString().split('T')[0]);
+                        }}
+                      >
+                        ← Semana Anterior
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          const today = new Date();
+                          const dayOfWeek = today.getDay();
+                          const monday = new Date(today);
+                          monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+                          setSelectedWeekForExport(monday.toISOString().split('T')[0]);
+                        }}
+                      >
+                        Semana Atual
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          const currentWeek = new Date(selectedWeekForExport);
+                          currentWeek.setDate(currentWeek.getDate() + 7);
+                          setSelectedWeekForExport(currentWeek.toISOString().split('T')[0]);
+                        }}
+                      >
+                        Próxima Semana →
+                      </Button>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Filtros de Exportação */}
+            <Grid item xs={12}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h6" gutterBottom color="primary">
+                    🔍 Filtros de Exportação
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <Autocomplete
+                        options={profissionais}
+                        getOptionLabel={(option) => option.nome}
+                        value={profissionais.find(p => p.nome === filters.profissional_nome) || null}
+                        onChange={(event, newValue) => {
+                          setFilters(prev => ({ ...prev, profissional_nome: newValue?.nome || "" }));
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} label="Profissional (opcional)" variant="outlined" />
+                        )}
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <Autocomplete
+                        options={alunos}
+                        getOptionLabel={(option) => option.nome}
+                        value={alunos.find(a => a.id === Number(filters.aluno_id)) || null}
+                        onChange={(event, newValue) => {
+                          setFilters(prev => ({ ...prev, aluno_id: newValue?.id || "" }));
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} label="Aluno (opcional)" variant="outlined" />
+                        )}
+                      />
+                    </Grid>
+                  </Grid>
+                  
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    💡 <strong>Dica:</strong> Deixe os filtros vazios para exportar todos os agendamentos da semana selecionada.
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Opções de Formatação */}
+            <Grid item xs={12}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h6" gutterBottom color="primary">
+                    ⚙️ Opções de Formatação
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={exportOptions.incluirObservacoes}
+                            onChange={(e) => setExportOptions(prev => ({ 
+                              ...prev, 
+                              incluirObservacoes: e.target.checked 
+                            }))}
+                          />
+                        }
+                        label="Incluir Observações dos Agendamentos"
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={exportOptions.incluirDetalhesAlunos}
+                            onChange={(e) => setExportOptions(prev => ({ 
+                              ...prev, 
+                              incluirDetalhesAlunos: e.target.checked 
+                            }))}
+                          />
+                        }
+                        label="Incluir Detalhes dos Alunos"
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={exportOptions.incluirContatos}
+                            onChange={(e) => setExportOptions(prev => ({ 
+                              ...prev, 
+                              incluirContatos: e.target.checked 
+                            }))}
+                          />
+                        }
+                        label="Incluir Contatos dos Responsáveis"
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={exportOptions.agruparPorProfissional}
+                            onChange={(e) => setExportOptions(prev => ({ 
+                              ...prev, 
+                              agruparPorProfissional: e.target.checked 
+                            }))}
+                          />
+                        }
+                        label="Agrupar por Profissional"
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={exportOptions.incluirEstatisticas}
+                            onChange={(e) => setExportOptions(prev => ({ 
+                              ...prev, 
+                              incluirEstatisticas: e.target.checked 
+                            }))}
+                          />
+                        }
+                        label="Incluir Estatísticas da Semana"
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Resumo da Exportação */}
+            <Grid item xs={12}>
+              <Card variant="outlined" sx={{ backgroundColor: '#f5f5f5' }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom color="primary">
+                    📋 Resumo da Exportação
+                  </Typography>
+                  
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Período:</strong> {formatWeekPeriod(selectedWeekForExport)}
+                  </Typography>
+                  
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Filtros:</strong> {
+                      filters.profissional_nome || filters.aluno_id 
+                        ? `${filters.profissional_nome ? `Profissional: ${filters.profissional_nome}` : ''}${filters.profissional_nome && filters.aluno_id ? ' | ' : ''}${filters.aluno_id ? `Aluno: ${alunos.find(a => a.id === Number(filters.aluno_id))?.nome || 'ID ' + filters.aluno_id}` : ''}`
+                        : 'Todos os agendamentos'
+                    }
+                  </Typography>
+                  
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Opções:</strong> {
+                      [
+                        exportOptions.incluirObservacoes ? 'Observações' : null,
+                        exportOptions.incluirDetalhesAlunos ? 'Detalhes dos Alunos' : null,
+                        exportOptions.incluirContatos ? 'Contatos' : null,
+                        exportOptions.agruparPorProfissional ? 'Agrupado por Profissional' : null,
+                        exportOptions.incluirEstatisticas ? 'Estatísticas' : null
+                      ].filter(Boolean).join(', ') || 'Nenhuma opção adicional'
+                    }
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: "space-between", px: 3, py: 2 }}>
+          <Box>
+            <Button 
+              variant="outlined" 
+              size="small"
+              onClick={() => {
+                setExportOptions({
+                  incluirObservacoes: true,
+                  incluirDetalhesAlunos: true,
+                  incluirContatos: true,
+                  agruparPorProfissional: false,
+                  incluirEstatisticas: true,
+                  formato: "semanal"
+                });
+              }}
+            >
+              🔄 Restaurar Padrões
+            </Button>
+          </Box>
+          
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button onClick={() => setExportModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="contained" 
+              onClick={handleExportPDF}
+              disabled={loading}
+              startIcon={<span>📄</span>}
+              sx={{ minWidth: 200 }}
+            >
+              {loading ? "Gerando PDF..." : "Gerar e Baixar PDF"}
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
     </AppShell>

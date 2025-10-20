@@ -44,6 +44,9 @@ export async function POST(req) {
     // Criar mock response que funciona com NextResponse
     let responseData = null;
     let responseStatus = 200;
+    let pdfBuffer = null;
+    let contentType = 'application/json';
+    let contentDisposition = null;
     
     const mockRes = {
       json: (data) => {
@@ -56,7 +59,18 @@ export async function POST(req) {
           responseStatus = code;
           return data;
         }
-      })
+      }),
+      setHeader: (name, value) => {
+        if (name === 'Content-Type') {
+          contentType = value;
+        } else if (name === 'Content-Disposition') {
+          contentDisposition = value;
+        }
+      },
+      send: (buffer) => {
+        pdfBuffer = buffer;
+        responseStatus = 200;
+      }
     };
     
     // Simular req.body para o controller
@@ -64,6 +78,18 @@ export async function POST(req) {
     
     await exportarPDF(mockReq, mockRes);
     
+    // Se é um PDF, retornar como buffer
+    if (pdfBuffer) {
+      return new NextResponse(pdfBuffer, {
+        status: responseStatus,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Disposition': contentDisposition
+        }
+      });
+    }
+    
+    // Caso contrário, retornar JSON
     return NextResponse.json(responseData, { status: responseStatus });
 
   } catch (error) {
