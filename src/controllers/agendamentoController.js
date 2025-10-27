@@ -496,7 +496,7 @@ export async function exportarPDF(req, res) {
       {
         model: Aluno,
         as: "alunos",
-        attributes: ["nome", "turma"],
+        attributes: ["id", "nome", "idade", "turma", "turno", "escola_regular", "serie", "cidade", "responsavel_nome", "responsavel_telefone", "observacoes"],
         through: { attributes: [] }
       }
     ];
@@ -509,14 +509,30 @@ export async function exportarPDF(req, res) {
       include[2].where = { id: aluno_id };
     }
 
+    console.log("Query include:", JSON.stringify(include, null, 2));
+    
     const agendamentos = await Agendamento.findAll({
       where,
       include,
       order: [["data", "ASC"], ["hora_inicio", "ASC"]]
     });
+    
+    console.log("Número de agendamentos encontrados:", agendamentos.length);
 
     // Converter objetos Sequelize para JSON simples
     const agendamentosJSON = agendamentos.map(ag => ag.toJSON());
+    
+    // Log para verificar dados dos alunos
+    if (agendamentosJSON.length > 0) {
+      console.log("Primeiro agendamento com dados dos alunos:");
+      console.log("- ID:", agendamentosJSON[0].id);
+      console.log("- Data:", agendamentosJSON[0].data);
+      console.log("- Alunos:", agendamentosJSON[0].alunos);
+      console.log("- Número de alunos:", agendamentosJSON[0].alunos ? agendamentosJSON[0].alunos.length : 0);
+      if (agendamentosJSON[0].alunos && agendamentosJSON[0].alunos.length > 0) {
+        console.log("- Primeiro aluno:", agendamentosJSON[0].alunos[0]);
+      }
+    }
 
     // Gerar PDF
     const pdf = gerarPDFAgenda(agendamentosJSON, {
@@ -757,8 +773,19 @@ function adicionarAgendamentoAoPDF(doc, agendamento, yPosition, pageHeight, conf
   yPosition += 5;
 
   // Alunos
+  console.log("=== PROCESSANDO ALUNOS ===");
+  console.log("Agendamento ID:", agendamento.id);
+  console.log("Dados dos alunos:", agendamento.alunos);
+  console.log("Tipo dos alunos:", typeof agendamento.alunos);
+  console.log("É array?", Array.isArray(agendamento.alunos));
+  console.log("Tem alunos?", !!(agendamento.alunos && agendamento.alunos.length > 0));
+  
   if (agendamento.alunos && agendamento.alunos.length > 0) {
-    const nomesAlunos = agendamento.alunos.map(aluno => aluno.nome).join(", ");
+    console.log("Processando", agendamento.alunos.length, "alunos");
+    const nomesAlunos = agendamento.alunos.map(aluno => {
+      console.log("Aluno:", aluno);
+      return aluno.nome || 'Nome não encontrado';
+    }).join(", ");
     doc.text(`Alunos: ${nomesAlunos}`, 80, yPosition);
     yPosition += 5;
 

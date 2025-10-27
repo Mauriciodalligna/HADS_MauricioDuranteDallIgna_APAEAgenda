@@ -35,8 +35,8 @@ export function initAssociations() {
   // (Disponibilidade removida)
 
   // Mural de avisos
-  MuralAvisos.belongsTo(Usuario, { foreignKey: "remetente_id" });
-  Usuario.hasMany(MuralAvisos, { foreignKey: "remetente_id" });
+  MuralAvisos.belongsTo(Usuario, { as: "remetente", foreignKey: "remetente_id" });
+  Usuario.hasMany(MuralAvisos, { as: "avisos", foreignKey: "remetente_id" });
 
   // Logs de ações
   LogAcao.belongsTo(Usuario, { foreignKey: "usuario_id" });
