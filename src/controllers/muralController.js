@@ -88,7 +88,8 @@ export async function listarAvisos(req, res) {
         {
           model: Usuario,
           as: "remetente",
-          attributes: ["id", "nome", "email"]
+          attributes: ["id", "nome", "email"],
+          required: false // LEFT JOIN para incluir avisos mesmo sem remetente
         }
       ],
       order: [["data_publicacao", "DESC"]],
@@ -99,21 +100,53 @@ export async function listarAvisos(req, res) {
     console.log("Avisos encontrados:", avisos.count);
 
     // Converter objetos Sequelize para JSON simples de forma mais robusta
-    const avisosJSON = avisos.rows.map(aviso => {
+    const avisosJSON = await Promise.all(avisos.rows.map(async (aviso) => {
       const avisoData = aviso.toJSON();
-      return {
-        id: avisoData.id,
-        conteudo: avisoData.conteudo,
-        data_publicacao: avisoData.data_publicacao,
-        setor_destino: avisoData.setor_destino,
-        visivel_ate: avisoData.visivel_ate,
-        remetente: avisoData.remetente ? {
+      console.log(`🔍 DEBUG listarAvisos - Aviso ID ${avisoData.id}:`);
+      console.log(`  - remetente_id: ${avisoData.remetente_id}`);
+      console.log(`  - remetente (include):`, avisoData.remetente);
+      
+      // Se o remetente não vier no include, buscar manualmente
+      let remetente = null;
+      if (avisoData.remetente) {
+        remetente = {
           id: avisoData.remetente.id,
           nome: avisoData.remetente.nome,
           email: avisoData.remetente.email
-        } : null
+        };
+        console.log(`  ✅ Remetente encontrado via include: ${remetente.nome}`);
+      } else if (avisoData.remetente_id) {
+        // Buscar o usuário manualmente se o include falhou
+        console.log(`  ⚠️ Buscando remetente manualmente para ID ${avisoData.remetente_id}...`);
+        try {
+          const usuario = await Usuario.findByPk(avisoData.remetente_id);
+          if (usuario) {
+            const usuarioData = usuario.toJSON();
+            remetente = {
+              id: usuarioData.id,
+              nome: usuarioData.nome,
+              email: usuarioData.email
+            };
+            console.log(`  ✅ Remetente encontrado manualmente: ${remetente.nome}`);
+          } else {
+            console.log(`  ❌ Usuário não encontrado no banco para remetente_id: ${avisoData.remetente_id}`);
+          }
+        } catch (error) {
+          console.error(`  ❌ Erro ao buscar remetente ${avisoData.remetente_id}:`, error);
+        }
+      } else {
+        console.log(`  ❌ Aviso ${avisoData.id} não tem remetente_id`);
+      }
+      
+      return {
+        id: avisoData.id,
+        conteudo: avisoData.conteudo,
+        data_publicacao: avisoData.data_publicacao ? new Date(avisoData.data_publicacao).toISOString() : null,
+        setor_destino: avisoData.setor_destino,
+        visivel_ate: avisoData.visivel_ate ? new Date(avisoData.visivel_ate).toISOString() : null,
+        remetente
       };
-    });
+    }));
 
     res.json({
       ok: true,
@@ -145,7 +178,12 @@ export async function criarAviso(req, res) {
     await ensureMuralTable();
     
     const { conteudo, setor_destino = 'todos', visivel_ate } = req.body;
-    const remetente_id = req.user.id;
+    // JWT usa 'sub' como ID do usuário, não 'id'
+    console.log("🔍 DEBUG criarAviso - req.user completo:", JSON.stringify(req.user, null, 2));
+    console.log("🔍 DEBUG criarAviso - req.user.sub:", req.user.sub);
+    console.log("🔍 DEBUG criarAviso - req.user.id:", req.user.id);
+    const remetente_id = req.user.sub || req.user.id;
+    console.log("🔍 DEBUG criarAviso - remetente_id final:", remetente_id);
 
     // Validar campos obrigatórios
     if (!conteudo || conteudo.trim().length === 0) {
@@ -168,7 +206,7 @@ export async function criarAviso(req, res) {
     // Calcular data de expiração (30 dias por padrão)
     const dataExpiracao = visivel_ate ? new Date(visivel_ate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    console.log("Tentando criar aviso...");
+    console.log("Tentando criar aviso com remetente_id:", remetente_id);
     const aviso = await MuralAvisos.create({
       remetente_id,
       conteudo: conteudo.trim(),
@@ -177,28 +215,83 @@ export async function criarAviso(req, res) {
       visivel_ate: dataExpiracao
     });
 
-    console.log("Aviso criado com ID:", aviso.id);
+    console.log("✅ Aviso criado com ID:", aviso.id);
+    const avisoCriadoData = aviso.toJSON();
+    console.log("🔍 DEBUG - Aviso criado (raw):", JSON.stringify(avisoCriadoData, null, 2));
+    console.log("🔍 DEBUG - remetente_id salvo:", avisoCriadoData.remetente_id);
+    
+    // Verificar se o remetente_id existe no banco antes de buscar
+    console.log("🔍 DEBUG - Verificando se usuário existe no banco...");
+    const usuarioTeste = await Usuario.findByPk(remetente_id);
+    if (usuarioTeste) {
+      const usuarioTesteData = usuarioTeste.toJSON();
+      console.log("✅ Usuário encontrado no banco:", usuarioTesteData);
+    } else {
+      console.log("❌ Usuário NÃO encontrado no banco com ID:", remetente_id);
+    }
+    
+    // Buscar o aviso criado com os dados do remetente
+    console.log("🔍 DEBUG - Buscando aviso completo com include...");
+    const avisoCompleto = await MuralAvisos.findByPk(aviso.id, {
+      include: [
+        {
+          model: Usuario,
+          as: "remetente",
+          attributes: ["id", "nome", "email"],
+          required: false
+        }
+      ]
+    });
     
     // Converter para JSON simples de forma mais robusta
-    const avisoData = aviso.toJSON();
+    const avisoData = avisoCompleto.toJSON();
+    console.log("🔍 DEBUG - Aviso completo (com include):", JSON.stringify(avisoData, null, 2));
+    console.log("🔍 DEBUG - Remetente encontrado:", avisoData.remetente);
+    
+    // Se o include não trouxe o remetente, buscar manualmente
+    let remetente = null;
+    if (avisoData.remetente) {
+      remetente = {
+        id: avisoData.remetente.id,
+        nome: avisoData.remetente.nome,
+        email: avisoData.remetente.email
+      };
+      console.log("✅ Remetente encontrado via include:", remetente);
+    } else if (avisoData.remetente_id) {
+      console.log("⚠️ Remetente não encontrado via include, buscando manualmente...");
+      try {
+        const usuario = await Usuario.findByPk(avisoData.remetente_id);
+        if (usuario) {
+          const usuarioData = usuario.toJSON();
+          remetente = {
+            id: usuarioData.id,
+            nome: usuarioData.nome,
+            email: usuarioData.email
+          };
+          console.log("✅ Remetente encontrado manualmente:", remetente);
+        } else {
+          console.log("❌ Usuário não encontrado no banco com ID:", avisoData.remetente_id);
+        }
+      } catch (error) {
+        console.error("❌ Erro ao buscar remetente manualmente:", error);
+      }
+    }
     
     // Retornar o aviso criado
-    res.status(201).json({
+    const resposta = {
       ok: true,
       aviso: {
         id: avisoData.id,
         conteudo: avisoData.conteudo,
-        data_publicacao: avisoData.data_publicacao,
+        data_publicacao: avisoData.data_publicacao ? new Date(avisoData.data_publicacao).toISOString() : null,
         setor_destino: avisoData.setor_destino,
-        visivel_ate: avisoData.visivel_ate,
-        remetente: {
-          id: req.user.id,
-          nome: req.user.nome || "Usuário",
-          email: req.user.email || ""
-        }
+        visivel_ate: avisoData.visivel_ate ? new Date(avisoData.visivel_ate).toISOString() : null,
+        remetente
       },
       message: "Aviso publicado com sucesso"
-    });
+    };
+    console.log("🔍 DEBUG - Resposta final:", JSON.stringify(resposta, null, 2));
+    res.status(201).json(resposta);
 
   } catch (error) {
     console.error("Erro ao criar aviso:", error);
@@ -216,7 +309,8 @@ export async function atualizarAviso(req, res) {
   try {
     const { id } = req.params;
     const { conteudo, setor_destino, visivel_ate } = req.body;
-    const usuario_id = req.user.id;
+    // JWT usa 'sub' como ID do usuário, não 'id'
+    const usuario_id = req.user.sub || req.user.id;
 
     // Buscar o aviso
     const aviso = await MuralAvisos.findByPk(id);
@@ -280,9 +374,9 @@ export async function atualizarAviso(req, res) {
       aviso: {
         id: avisoData.id,
         conteudo: avisoData.conteudo,
-        data_publicacao: avisoData.data_publicacao,
+        data_publicacao: avisoData.data_publicacao ? new Date(avisoData.data_publicacao).toISOString() : null,
         setor_destino: avisoData.setor_destino,
-        visivel_ate: avisoData.visivel_ate,
+        visivel_ate: avisoData.visivel_ate ? new Date(avisoData.visivel_ate).toISOString() : null,
         remetente: avisoData.remetente ? {
           id: avisoData.remetente.id,
           nome: avisoData.remetente.nome,
@@ -307,7 +401,8 @@ export async function atualizarAviso(req, res) {
 export async function excluirAviso(req, res) {
   try {
     const { id } = req.params;
-    const usuario_id = req.user.id;
+    // JWT usa 'sub' como ID do usuário, não 'id'
+    const usuario_id = req.user.sub || req.user.id;
 
     // Buscar o aviso
     const aviso = await MuralAvisos.findByPk(id);
@@ -375,9 +470,9 @@ export async function obterAviso(req, res) {
       aviso: {
         id: avisoData.id,
         conteudo: avisoData.conteudo,
-        data_publicacao: avisoData.data_publicacao,
+        data_publicacao: avisoData.data_publicacao ? new Date(avisoData.data_publicacao).toISOString() : null,
         setor_destino: avisoData.setor_destino,
-        visivel_ate: avisoData.visivel_ate,
+        visivel_ate: avisoData.visivel_ate ? new Date(avisoData.visivel_ate).toISOString() : null,
         remetente: avisoData.remetente ? {
           id: avisoData.remetente.id,
           nome: avisoData.remetente.nome,

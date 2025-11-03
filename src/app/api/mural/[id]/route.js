@@ -10,11 +10,28 @@ export async function GET(req, { params }) {
     }
 
     // Todos os usuários autenticados podem ver avisos
+    let responseData = null;
+    let statusCode = 200;
+    
     const mockReq = { params, user: auth.user };
-    const mockRes = { json: (data) => data, status: (code) => ({ json: (data) => data }) };
+    const mockRes = { 
+      json: (data) => {
+        responseData = data;
+        return data;
+      }, 
+      status: (code) => {
+        statusCode = code;
+        return {
+          json: (data) => {
+            responseData = data;
+            return data;
+          }
+        };
+      }
+    };
 
-    const result = await obterAviso(mockReq, mockRes);
-    return NextResponse.json(result);
+    await obterAviso(mockReq, mockRes);
+    return NextResponse.json(responseData, { status: statusCode });
 
   } catch (error) {
     console.error("Erro na rota GET /api/mural/[id]:", error);
@@ -39,11 +56,28 @@ export async function PUT(req, { params }) {
     }
 
     const body = await req.json();
+    let responseData = null;
+    let statusCode = 200;
+    
     const mockReq = { params, body, user: auth.user };
-    const mockRes = { json: (data) => data, status: (code) => ({ json: (data) => data }) };
+    const mockRes = { 
+      json: (data) => {
+        responseData = data;
+        return data;
+      }, 
+      status: (code) => {
+        statusCode = code;
+        return {
+          json: (data) => {
+            responseData = data;
+            return data;
+          }
+        };
+      }
+    };
 
-    const result = await atualizarAviso(mockReq, mockRes);
-    return NextResponse.json(result);
+    await atualizarAviso(mockReq, mockRes);
+    return NextResponse.json(responseData, { status: statusCode });
 
   } catch (error) {
     console.error("Erro na rota PUT /api/mural/[id]:", error);
@@ -67,11 +101,28 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ ok: false, error: authError.error }, { status: authError.status });
     }
 
+    let responseData = null;
+    let statusCode = 200;
+    
     const mockReq = { params, user: auth.user };
-    const mockRes = { json: (data) => data, status: (code) => ({ json: (data) => data }) };
+    const mockRes = { 
+      json: (data) => {
+        responseData = data;
+        return data;
+      }, 
+      status: (code) => {
+        statusCode = code;
+        return {
+          json: (data) => {
+            responseData = data;
+            return data;
+          }
+        };
+      }
+    };
 
-    const result = await excluirAviso(mockReq, mockRes);
-    return NextResponse.json(result);
+    await excluirAviso(mockReq, mockRes);
+    return NextResponse.json(responseData, { status: statusCode });
 
   } catch (error) {
     console.error("Erro na rota DELETE /api/mural/[id]:", error);

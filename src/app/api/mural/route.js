@@ -19,22 +19,31 @@ export async function GET(req) {
       query: Object.fromEntries(new URL(req.url).searchParams),
       user: auth.user 
     };
+    
+    let responseData = null;
+    let statusCode = 200;
+    
     const mockRes = { 
       json: (data) => {
         console.log("Resposta do controller:", data);
+        responseData = data;
         return data;
       },
-      status: (code) => ({ 
-        json: (data) => {
-          console.log("Resposta com status:", code, data);
-          return data;
-        }
-      })
+      status: (code) => {
+        statusCode = code;
+        return {
+          json: (data) => {
+            console.log("Resposta com status:", code, data);
+            responseData = data;
+            return data;
+          }
+        };
+      }
     };
     
-    const result = await listarAvisos(mockReq, mockRes);
-    console.log("Resultado final:", result);
-    return NextResponse.json(result);
+    await listarAvisos(mockReq, mockRes);
+    console.log("Resultado final:", responseData);
+    return NextResponse.json(responseData, { status: statusCode });
 
   } catch (error) {
     console.error("Erro na rota GET /api/mural:", error);
@@ -67,23 +76,31 @@ export async function POST(req) {
     const body = await req.json();
     console.log("Body da requisição:", body);
     
+    let responseData = null;
+    let statusCode = 200;
+    
     const mockReq = { body, user: auth.user };
     const mockRes = { 
       json: (data) => {
         console.log("Resposta do controller:", data);
+        responseData = data;
         return data;
       }, 
-      status: (code) => ({ 
-        json: (data) => {
-          console.log("Resposta com status:", code, data);
-          return data;
-        }
-      }) 
+      status: (code) => {
+        statusCode = code;
+        return {
+          json: (data) => {
+            console.log("Resposta com status:", code, data);
+            responseData = data;
+            return data;
+          }
+        };
+      } 
     };
 
-    const result = await criarAviso(mockReq, mockRes);
-    console.log("Resultado final:", result);
-    return NextResponse.json(result);
+    await criarAviso(mockReq, mockRes);
+    console.log("Resultado final:", responseData);
+    return NextResponse.json(responseData, { status: statusCode });
 
   } catch (error) {
     console.error("Erro na rota POST /api/mural:", error);

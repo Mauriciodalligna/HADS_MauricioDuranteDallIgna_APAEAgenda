@@ -91,6 +91,12 @@ export default function MuralPage() {
       }
 
       const data = await res.json();
+      console.log("🔍 DEBUG Frontend - Dados recebidos da API:", data);
+      console.log("🔍 DEBUG Frontend - Avisos recebidos:", data.avisos);
+      if (data.avisos && data.avisos.length > 0) {
+        console.log("🔍 DEBUG Frontend - Primeiro aviso:", data.avisos[0]);
+        console.log("🔍 DEBUG Frontend - Remetente do primeiro aviso:", data.avisos[0].remetente);
+      }
       setAvisos(data.avisos);
       setPaginacao(prev => ({
         ...prev,
