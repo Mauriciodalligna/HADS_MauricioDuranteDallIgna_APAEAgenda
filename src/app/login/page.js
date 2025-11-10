@@ -7,7 +7,6 @@ import Box from "@mui/material/Box";
 import Alert from "@mui/material/Alert";
 import Link from "next/link";
 import CircularProgress from "@mui/material/CircularProgress";
-import PageContainer from "@/components/PageContainer";
 import FormInput from "@/components/FormInput";
 import CustomButton from "@/components/CustomButton";
 
@@ -57,27 +56,89 @@ export default function LoginPage() {
   }
 
   return (
-    <PageContainer>
-      <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 420, margin: "40px auto", background: "#fff", border: "1px solid #e0e0e0", borderRadius: 8, padding: 32, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-        <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
-          Entrar no APAE Agenda
-        </Typography>
-        {error ? (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        ) : null}
-        <FormInput type="email" label="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <FormInput type="password" label="Senha" value={senha} onChange={(e) => setSenha(e.target.value)} required />
-        <CustomButton type="submit" variant="contained" color="primary" fullWidth disabled={loading} sx={{ py: 1.2 }}>
-          {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Entrar"}
-        </CustomButton>
-        <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between" }}>
-          <Link href="/auth/forgot">Esqueci minha senha</Link>
-          <Link href="/auth/register">Criar conta</Link>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        px: 2,
+        bgcolor: "background.default",
+      }}
+    >
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          sx={{
+            width: "100%",
+            maxWidth: 420,
+            background: "#fff",
+            border: "1px solid #e0e0e0",
+            borderRadius: 2,
+            padding: 4,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+          }}
+        >
+          <Box sx={{ textAlign: "center", mb: 3 }}>
+            <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: "primary.main" }}>
+              APAE Agenda
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Sistema de Gestão de Agendamentos
+            </Typography>
+          </Box>
+
+          {error ? (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          ) : null}
+
+          <FormInput
+            type="email"
+            label="E-mail"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            fullWidth
+            sx={{ mb: 2 }}
+          />
+          <FormInput
+            type="password"
+            label="Senha"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            required
+            fullWidth
+            sx={{ mb: 3 }}
+          />
+
+          <CustomButton
+            type="submit"
+            variant="contained"
+            color="primary"
+            fullWidth
+            disabled={loading}
+            sx={{ py: 1.5, mb: 2 }}
+          >
+            {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Entrar"}
+          </CustomButton>
+
+          <Box sx={{ textAlign: "center" }}>
+            <Link
+              href="/auth/forgot"
+              style={{
+                textDecoration: "none",
+                color: "inherit",
+                fontSize: "0.875rem",
+              }}
+            >
+              Esqueci minha senha
+            </Link>
+          </Box>
         </Box>
-      </form>
-    </PageContainer>
+    </Box>
   );
 }
 
