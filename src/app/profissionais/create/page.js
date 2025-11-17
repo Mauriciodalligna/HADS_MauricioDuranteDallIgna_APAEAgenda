@@ -5,8 +5,11 @@ import AppShell from "@/components/AppShell";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import Grid from "@mui/material/Grid";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
 import FormInput from "@/components/FormInput";
 import CustomButton from "@/components/CustomButton";
+import CircularProgress from "@mui/material/CircularProgress";
 import { useRouter } from "next/navigation";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
@@ -63,26 +66,50 @@ export default function ProfissionaisCreatePage() {
 
   return (
     <AppShell>
-      <form onSubmit={handleSubmit} style={{ maxWidth: 720 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>Cadastrar Profissional</Typography>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <TextField select label="Usuário (profissional)" value={form.nome} onChange={updateField("nome")} fullWidth required>
-              {usuarios.map((u) => (
-                <MenuItem key={u.id} value={u.nome}>{u.nome}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormInput label="Setor" value={form.setor} onChange={updateField("setor")} />
-          </Grid>
-          <Grid item xs={12}>
-            <FormInput label="Especialidade" value={form.especialidade} onChange={updateField("especialidade")} />
-          </Grid>
-        </Grid>
-        <CustomButton type="submit" sx={{ mt: 2 }} disabled={loading}>Salvar</CustomButton>
-      </form>
+      <Stack spacing={3}>
+        <Stack spacing={1}>
+          <Typography variant="h4" sx={{ fontWeight: 600 }}>
+            Cadastrar profissional
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Associe um usuário existente ao perfil de profissional e defina suas áreas de atuação.
+          </Typography>
+        </Stack>
+
+        {error && (
+          <Alert severity="error" variant="outlined">
+            {error}
+          </Alert>
+        )}
+
+        <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: { xs: 3, md: 4 }, borderRadius: 4 }}>
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField select label="Usuário (profissional)" value={form.nome} onChange={updateField("nome")} fullWidth required>
+                  {usuarios.map((u) => (
+                    <MenuItem key={u.id} value={u.nome}>{u.nome}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormInput label="Setor" value={form.setor} onChange={updateField("setor")} />
+              </Grid>
+              <Grid item xs={12}>
+                <FormInput label="Especialidade" value={form.especialidade} onChange={updateField("especialidade")} />
+              </Grid>
+            </Grid>
+            <Stack direction="row" spacing={2} justifyContent="flex-end">
+              <CustomButton variant="outlined" color="inherit" onClick={() => router.push("/profissionais")} disabled={loading}>
+                Cancelar
+              </CustomButton>
+              <CustomButton type="submit" variant="contained" disabled={loading}>
+                {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Salvar profissional"}
+              </CustomButton>
+            </Stack>
+          </Stack>
+        </Paper>
+      </Stack>
     </AppShell>
   );
 }

@@ -20,6 +20,7 @@
    - Use essa senha no `SMTP_PASSWORD`
 
 **Variáveis de ambiente (.env.local):**
+
 ```env
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -55,6 +56,7 @@ SMTP_FROM=APAE Agenda <no-reply@seudominio.com.br>
 ### Opção 4: Serviços de Email Transacional
 
 #### SendGrid
+
 ```env
 SMTP_HOST=smtp.sendgrid.net
 SMTP_PORT=587
@@ -65,6 +67,7 @@ SMTP_FROM=APAE Agenda <no-reply@seudominio.com.br>
 ```
 
 #### Mailgun
+
 ```env
 SMTP_HOST=smtp.mailgun.org
 SMTP_PORT=587
@@ -77,6 +80,7 @@ SMTP_FROM=APAE Agenda <no-reply@seudominio.com.br>
 ## Modo Desenvolvimento (Sem Email Configurado)
 
 Se você não configurar as variáveis de email, o sistema funcionará em modo desenvolvimento:
+
 - Token será exibido no console do servidor
 - Link de recuperação será mostrado nos logs
 - Você pode copiar o link e testar manualmente
@@ -111,6 +115,3 @@ Se você não configurar as variáveis de email, o sistema funcionará em modo d
 - Token expira em 30 minutos
 - Token só pode ser usado uma vez
 - Verifique se está copiando o token completo
-
-
-

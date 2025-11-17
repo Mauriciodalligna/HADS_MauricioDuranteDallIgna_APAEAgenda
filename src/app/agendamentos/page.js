@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
+import CustomButton from "@/components/CustomButton";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -19,6 +23,19 @@ import Autocomplete from "@mui/material/Autocomplete";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Grid from "@mui/material/Grid";
+import LinearProgress from "@mui/material/LinearProgress";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import TodayIcon from "@mui/icons-material/Today";
+import ViewWeekIcon from "@mui/icons-material/ViewWeek";
+import ViewDayIcon from "@mui/icons-material/ViewDay";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import AddIcon from "@mui/icons-material/Add";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import DownloadIcon from "@mui/icons-material/Download";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay, addDays, endOfWeek } from "date-fns";
 import ptBR from "date-fns/locale/pt-BR";
@@ -33,6 +50,12 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+const INITIAL_FILTERS = {
+  profissional_nome: "",
+  aluno_id: "",
+  status: "confirmado",
+};
+
 export default function AgendamentosPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -41,11 +64,7 @@ export default function AgendamentosPage() {
   const [profissionais, setProfissionais] = useState([]);
   const [alunos, setAlunos] = useState([]);
   const [atividades, setAtividades] = useState([]);
-  const [filters, setFilters] = useState({ 
-    profissional_nome: "", 
-    aluno_id: "",
-    status: "confirmado"
-  });
+  const [filters, setFilters] = useState(INITIAL_FILTERS);
   
   // Estados para controle do calendário
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -128,7 +147,7 @@ export default function AgendamentosPage() {
     return `${start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} a ${end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
   }
 
-  async function loadOptions() {
+  const loadOptions = useCallback(async () => {
     try {
       setError("");
       const [rp, ra, rt] = await Promise.all([
@@ -147,32 +166,27 @@ export default function AgendamentosPage() {
     } catch { 
       setError("Erro ao carregar filtros"); 
     }
-  }
+  }, [token]);
 
-  async function loadAgendamentos() {
+  const loadAgendamentos = useCallback(async () => {
     try {
       setError("");
       const qs = new URLSearchParams();
-      
       if (filters.profissional_nome) qs.append("profissional_nome", filters.profissional_nome);
       if (filters.aluno_id) qs.append("aluno_id", String(filters.aluno_id));
       if (filters.status) qs.append("status", filters.status);
-      
       qs.append("limit", "500");
-      
-      const res = await fetch(`/api/agendamentos?${qs.toString()}`, { 
-        headers: { authorization: `Bearer ${token}` } 
+      const res = await fetch(`/api/agendamentos?${qs.toString()}`, {
+        headers: { authorization: `Bearer ${token}` },
       });
       const j = await res.json();
-      
-      if (!res.ok || !j.ok) { 
-        setError(j?.error || "Falha ao carregar agenda"); 
-        return; 
+      if (!res.ok || !j.ok) {
+        setError(j?.error || "Falha ao carregar agenda");
+        return;
       }
-      
       const evs = (j.data || []).map((ag) => ({
         id: ag.id,
-        title: `${ag.atividade?.nome || "Atividade"} - ${ag.alunos?.map(a => a.nome).join(", ") || "Sem alunos"}`,
+        title: `${ag.atividade?.nome || "Atividade"} - ${ag.alunos?.map((a) => a.nome).join(", ") || "Sem alunos"}`,
         start: toDate(ag.data, ag.hora_inicio),
         end: toDate(ag.data, ag.hora_fim),
         resource: ag,
@@ -180,15 +194,14 @@ export default function AgendamentosPage() {
           backgroundColor: getCorPorTipo(ag.atividade?.tipo) || ag.atividade?.cor || "#1976d2",
           color: "white",
           border: "none",
-          borderRadius: "4px"
-        }
+          borderRadius: "4px",
+        },
       }));
-      
       setEvents(evs);
-    } catch { 
-      setError("Erro ao carregar agenda"); 
+    } catch {
+      setError("Erro ao carregar agenda");
     }
-  }
+  }, [filters.aluno_id, filters.profissional_nome, filters.status, token]);
 
   function handleSelectSlot({ start, end }) {
     const data = formatDateInput(start);
@@ -266,6 +279,85 @@ export default function AgendamentosPage() {
     
     return coresPorTipo[tipo] || '#1976d2'; // Azul padrão
   }
+
+  function getToolbarLabel(date, view) {
+    if (view === "month") {
+      return format(date, "MMMM yyyy", { locale: ptBR });
+    }
+    if (view === "week") {
+      const start = startOfWeek(date, { weekStartsOn: 1 });
+      const end = endOfWeek(date, { weekStartsOn: 1 });
+      return `${format(start, "dd/MM", { locale: ptBR })} - ${format(end, "dd/MM/yyyy", { locale: ptBR })}`;
+    }
+    return format(date, "dd 'de' MMMM yyyy", { locale: ptBR });
+  }
+
+  const CalendarToolbar = ({ date, view, onNavigate, onView }) => {
+    const label = getToolbarLabel(date, view);
+
+    const handleViewChange = (_event, nextView) => {
+      if (nextView) {
+        onView(nextView);
+      }
+    };
+
+    return (
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={2}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", md: "center" }}
+        sx={{
+          px: { xs: 1.5, md: 2 },
+          py: 1.5,
+          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+          backgroundColor: (theme) => theme.palette.background.paper,
+        }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center">
+          <IconButton aria-label="Voltar período" onClick={() => onNavigate("PREV")} size="small">
+            <ChevronLeftIcon fontSize="small" />
+          </IconButton>
+          <IconButton aria-label="Avançar período" onClick={() => onNavigate("NEXT")} size="small">
+            <ChevronRightIcon fontSize="small" />
+          </IconButton>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<TodayIcon />}
+            onClick={() => onNavigate("TODAY")}
+          >
+            Hoje
+          </Button>
+        </Stack>
+
+        <Typography
+          variant="subtitle1"
+          sx={{ fontWeight: 600, textTransform: "capitalize", textAlign: "center" }}
+        >
+          {label}
+        </Typography>
+
+        <ToggleButtonGroup
+          exclusive
+          size="small"
+          value={view}
+          onChange={handleViewChange}
+          color="primary"
+        >
+          <ToggleButton value="day" aria-label="Visualização diária">
+            <ViewDayIcon fontSize="small" />
+          </ToggleButton>
+          <ToggleButton value="week" aria-label="Visualização semanal">
+            <ViewWeekIcon fontSize="small" />
+          </ToggleButton>
+          <ToggleButton value="month" aria-label="Visualização mensal">
+            <CalendarMonthIcon fontSize="small" />
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Stack>
+    );
+  };
 
 
   // Função para buscar próximos agendamentos dos alunos
@@ -553,280 +645,258 @@ export default function AgendamentosPage() {
     }
   }
 
-  useEffect(() => { 
-    loadOptions(); 
-  }, []);
+  useEffect(() => {
+    loadOptions();
+  }, [loadOptions]);
 
-  useEffect(() => { 
-    loadAgendamentos(); 
-  }, [filters.profissional_nome, filters.aluno_id, filters.status]);
+  useEffect(() => {
+    loadAgendamentos();
+  }, [loadAgendamentos]);
 
   return (
     <AppShell>
-      <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
-        Agendamentos
-      </Typography>
-      
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
-      
-      {/* Toolbar com filtros */}
-      <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap", alignItems: "center" }}>
-        <Autocomplete
-          options={profissionais}
-          getOptionLabel={(option) => option.nome}
-          value={profissionais.find(p => p.nome === filters.profissional_nome) || null}
-          onChange={(event, newValue) => {
-            setFilters(prev => ({ ...prev, profissional_nome: newValue?.nome || "" }));
-          }}
-          sx={{ minWidth: 200 }}
-          renderInput={(params) => (
-            <TextField {...params} label="Profissional" variant="outlined" />
-          )}
-        />
-        
-        <Autocomplete
-          options={alunos}
-          getOptionLabel={(option) => option.nome}
-          value={alunos.find(a => a.id === Number(filters.aluno_id)) || null}
-          onChange={(event, newValue) => {
-            setFilters(prev => ({ ...prev, aluno_id: newValue?.id || "" }));
-          }}
-          sx={{ minWidth: 200 }}
-          renderInput={(params) => (
-            <TextField {...params} label="Aluno" variant="outlined" />
-          )}
-        />
+      <Stack spacing={3} sx={{ pb: 3 }}>
+        <Stack spacing={1}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "stretch", sm: "center" }}
+            justifyContent="space-between"
+          >
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Agendamentos
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Coordene atendimentos, acompanhe a disponibilidade da equipe e mantenha a rotina da escola em ordem.
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CustomButton
+                variant="outlined"
+                color="inherit"
+                startIcon={<ChevronLeftIcon />}
+                onClick={() => handleNavigate("PREV")}
+              >
+                Semana anterior
+              </CustomButton>
+              <CustomButton
+                variant="outlined"
+                color="inherit"
+                startIcon={<ChevronRightIcon />}
+                onClick={() => handleNavigate("NEXT")}
+              >
+                Próxima semana
+              </CustomButton>
+              <CustomButton
+                variant="outlined"
+                color="inherit"
+                startIcon={<RefreshIcon />}
+                onClick={loadAgendamentos}
+                disabled={loading}
+              >
+                Atualizar agenda
+              </CustomButton>
+              <CustomButton
+                variant="outlined"
+                color="inherit"
+                startIcon={<DownloadIcon />}
+                onClick={() => setExportModalOpen(true)}
+                disabled={loading}
+              >
+                Exportar PDF
+              </CustomButton>
+              <CustomButton
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => {
+                  setModalOpen(true);
+                  setForm((prev) => ({
+                    ...prev,
+                    data: formatDateInput(new Date()),
+                    hora_inicio: "09:00",
+                    profissional_nome: filters.profissional_nome || "",
+                    atividade: { id: null, nome: "", duracao_padrao: 60, cor: "#1976d2", tipo: "Geral" },
+                  }));
+                }}
+              >
+                Novo agendamento
+              </CustomButton>
+            </Stack>
+          </Stack>
+        </Stack>
 
+        {error && (
+          <Alert severity="error" variant="outlined" onClose={() => setError("")}>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert severity="success" variant="outlined" onClose={() => setSuccess("")}>
+            {success}
+          </Alert>
+        )}
 
-        <Button 
-          variant="contained" 
-          color="primary"
-          onClick={() => {
-            setModalOpen(true);
-            setForm(prev => ({
-              ...prev,
-              data: formatDateInput(new Date()),
-              hora_inicio: "09:00",
-              profissional_nome: filters.profissional_nome || "",
-              atividade: { id: null, nome: "", duracao_padrao: 60, cor: "#1976d2", tipo: "Geral" }
-            }));
-          }}
-          sx={{ mr: 1 }}
-        >
-          Criar Agendamento
-        </Button>
+        <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 3 } }}>
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <FilterAltIcon fontSize="small" color="primary" />
+              <Typography variant="subtitle2" color="text.secondary">
+                Filtros rápidos
+              </Typography>
+            </Stack>
+            <Stack
+              direction={{ xs: "column", lg: "row" }}
+              spacing={2}
+              alignItems={{ lg: "center" }}
+              justifyContent="space-between"
+            >
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ flexGrow: 1 }}>
+                <Autocomplete
+                  options={profissionais}
+                  getOptionLabel={(option) => option.nome}
+                  value={profissionais.find((p) => p.nome === filters.profissional_nome) || null}
+                  onChange={(_event, newValue) => {
+                    setFilters((prev) => ({ ...prev, profissional_nome: newValue?.nome || "" }));
+                  }}
+                  sx={{ minWidth: { xs: "100%", sm: 240 } }}
+                  renderInput={(params) => <TextField {...params} label="Profissional" variant="outlined" />}
+                />
 
-        <Button 
-          variant="contained" 
-          onClick={() => setExportModalOpen(true)}
-          disabled={loading}
-          sx={{ ml: "auto" }}
-        >
-          Exportar PDF
-        </Button>
-      </Box>
+                <Autocomplete
+                  options={alunos}
+                  getOptionLabel={(option) => option.nome}
+                  value={alunos.find((a) => a.id === Number(filters.aluno_id)) || null}
+                  onChange={(_event, newValue) => {
+                    setFilters((prev) => ({ ...prev, aluno_id: newValue?.id || "" }));
+                  }}
+                  sx={{ minWidth: { xs: "100%", sm: 240 } }}
+                  renderInput={(params) => <TextField {...params} label="Aluno" variant="outlined" />}
+                />
 
-      {/* Calendário */}
-      <Box sx={{ height: 700, mb: 2 }}>
-        <Calendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          view={currentView}
-          date={currentDate}
-          onNavigate={handleNavigate}
-          onView={handleViewChange}
-          views={["week", "day", "month"]}
-          culture="pt-BR"
-          style={{ height: "100%" }}
-          onSelectSlot={handleSelectSlot}
-          onSelectEvent={handleSelectEvent}
-          selectable
-          step={30}
-          timeslots={1}
-          min={new Date(0, 0, 0, 7, 30)} // 07:30
-          max={new Date(0, 0, 0, 17, 0)} // 17:00
-          eventPropGetter={(event) => ({
-            style: event.style
-          })}
-          components={{
-            toolbar: (props) => (
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                padding: '10px',
-                borderBottom: '1px solid #e0e0e0',
-                marginBottom: '10px'
-              }}>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button 
-                    onClick={() => handleNavigate('PREV')}
-                    style={{ 
-                      padding: '8px 12px', 
-                      border: '1px solid #ccc', 
-                      borderRadius: '4px',
-                      background: 'white',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ← Anterior
-                  </button>
-                  <button 
-                    onClick={() => handleNavigate('TODAY')}
-                    style={{ 
-                      padding: '8px 12px', 
-                      border: '1px solid #ccc', 
-                      borderRadius: '4px',
-                      background: 'white',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Hoje
-                  </button>
-                  <button 
-                    onClick={() => handleNavigate('NEXT')}
-                    style={{ 
-                      padding: '8px 12px', 
-                      border: '1px solid #ccc', 
-                      borderRadius: '4px',
-                      background: 'white',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Próximo →
-                  </button>
-                </div>
-                
-                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                  {currentView === 'day' && format(currentDate, 'dd/MM/yyyy')}
-                  {currentView === 'week' && `${format(startOfWeek(currentDate), 'dd/MM')} - ${format(endOfWeek(currentDate), 'dd/MM/yyyy')}`}
-                  {currentView === 'month' && format(currentDate, 'MMMM yyyy', { locale: ptBR })}
-                </div>
-                
-                <div style={{ display: 'flex', gap: '5px' }}>
-                  <button 
-                    onClick={() => handleViewChange('day')}
-                    style={{ 
-                      padding: '8px 12px', 
-                      border: '1px solid #ccc', 
-                      borderRadius: '4px',
-                      background: currentView === 'day' ? '#1976d2' : 'white',
-                      color: currentView === 'day' ? 'white' : 'black',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Dia
-                  </button>
-                  <button 
-                    onClick={() => handleViewChange('week')}
-                    style={{ 
-                      padding: '8px 12px', 
-                      border: '1px solid #ccc', 
-                      borderRadius: '4px',
-                      background: currentView === 'week' ? '#1976d2' : 'white',
-                      color: currentView === 'week' ? 'white' : 'black',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Semana
-                  </button>
-                  <button 
-                    onClick={() => handleViewChange('month')}
-                    style={{ 
-                      padding: '8px 12px', 
-                      border: '1px solid #ccc', 
-                      borderRadius: '4px',
-                      background: currentView === 'month' ? '#1976d2' : 'white',
-                      color: currentView === 'month' ? 'white' : 'black',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Mês
-                  </button>
-                </div>
-              </div>
-            )
-          }}
-        />
-      </Box>
+                <TextField
+                  select
+                  label="Status"
+                  value={filters.status}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}
+                  sx={{ minWidth: { xs: "100%", sm: 180 } }}
+                >
+                  <MenuItem value="">Todos os status</MenuItem>
+                  <MenuItem value="confirmado">Confirmado</MenuItem>
+                  <MenuItem value="pendente">Pendente</MenuItem>
+                  <MenuItem value="cancelado">Cancelado</MenuItem>
+                </TextField>
+              </Stack>
+            </Stack>
+          </Stack>
+        </Paper>
+
+        <Paper variant="outlined" sx={{ borderRadius: 4, overflow: "hidden" }}>
+          {loading ? <LinearProgress /> : null}
+          <Box sx={{ height: { xs: 520, md: 700 } }}>
+            <Calendar
+              localizer={localizer}
+              events={events}
+              startAccessor="start"
+              endAccessor="end"
+              view={currentView}
+              date={currentDate}
+              onNavigate={handleNavigate}
+              onView={handleViewChange}
+              views={["week", "day", "month"]}
+              culture="pt-BR"
+              style={{ height: "100%" }}
+              onSelectSlot={handleSelectSlot}
+              onSelectEvent={handleSelectEvent}
+              selectable
+              step={30}
+              timeslots={1}
+              min={new Date(0, 0, 0, 7, 30)}
+              max={new Date(0, 0, 0, 17, 0)}
+              eventPropGetter={(event) => ({ style: event.style })}
+              components={{ toolbar: CalendarToolbar }}
+            />
+          </Box>
+        </Paper>
+      </Stack>
 
       {/* Modal de Criação Rápida */}
       <Dialog open={modalOpen} onClose={() => setModalOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>
-          Novo Agendamento - {form.data} às {form.hora_inicio}
+        <DialogTitle sx={{ pb: 1 }}>
+          <Stack spacing={0.5}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Novo agendamento
+            </Typography>
+            {form.data ? (
+              <Typography variant="body2" color="text.secondary">
+                {format(new Date(`${form.data}T${form.hora_inicio || "00:00"}`), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              </Typography>
+            ) : null}
+          </Stack>
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Grid container spacing={2}>
-            {/* Seleção de Profissional */}
-            <Grid item xs={12} md={6}>
-              <Autocomplete
-                options={profissionais}
-                getOptionLabel={(option) => option.nome}
-                value={profissionais.find(p => p.nome === form.profissional_nome) || null}
-                onChange={(event, newValue) => {
-                  setForm(prev => ({ ...prev, profissional_nome: newValue?.nome || "" }));
-                }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Profissional" required />
-                )}
-              />
+        <DialogContent sx={{ pt: 0 }}>
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Autocomplete
+                  options={profissionais}
+                  getOptionLabel={(option) => option.nome}
+                  value={profissionais.find((p) => p.nome === form.profissional_nome) || null}
+                  onChange={(_event, newValue) => {
+                    setForm((prev) => ({ ...prev, profissional_nome: newValue?.nome || "" }));
+                  }}
+                  renderInput={(params) => <TextField {...params} label="Profissional" required />}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Autocomplete
+                  multiple
+                  options={alunos}
+                  getOptionLabel={(option) => option.nome}
+                  value={alunos.filter((aluno) => form.aluno_ids.includes(aluno.id))}
+                  onChange={(_event, newValue) => {
+                    setForm((prev) => ({ ...prev, aluno_ids: newValue.map((aluno) => aluno.id) }));
+                  }}
+                  renderInput={(params) => <TextField {...params} label="Alunos" required />}
+                />
+              </Grid>
             </Grid>
 
-            {/* Seleção de Alunos */}
-            <Grid item xs={12} md={6}>
-              <Autocomplete
-                multiple
-                options={alunos}
-                getOptionLabel={(option) => option.nome}
-                value={alunos.filter(a => form.aluno_ids.includes(a.id))}
-                onChange={(event, newValue) => {
-                  setForm(prev => ({ ...prev, aluno_ids: newValue.map(a => a.id) }));
-                }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Alunos" required />
-                )}
-              />
-            </Grid>
-
-            {/* Dados da Atividade */}
-            <Grid item xs={12}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Dados da Atividade
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Stack spacing={2}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Detalhes da atividade
                   </Typography>
-                  
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={6}>
-                      <TextField 
-                        label="Nome da Atividade" 
-                        value={form.atividade.nome} 
-                        onChange={(e) => setForm(prev => ({ 
-                          ...prev, 
-                          atividade: { ...prev.atividade, nome: e.target.value }
-                        }))}
+                      <TextField
+                        label="Nome da atividade"
+                        value={form.atividade.nome}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            atividade: { ...prev.atividade, nome: e.target.value },
+                          }))
+                        }
                         required
                         fullWidth
                       />
                     </Grid>
-                    
                     <Grid item xs={12} md={3}>
-                      <TextField 
+                      <TextField
                         select
-                        label="Tipo de Atendimento" 
-                        value={form.atividade.tipo} 
+                        label="Tipo de atendimento"
+                        value={form.atividade.tipo}
                         onChange={(e) => {
                           const novoTipo = e.target.value;
-                          setForm(prev => ({ 
-                            ...prev, 
-                            atividade: { 
-                              ...prev.atividade, 
+                          setForm((prev) => ({
+                            ...prev,
+                            atividade: {
+                              ...prev.atividade,
                               tipo: novoTipo,
-                              cor: getCorPorTipo(novoTipo)
-                            }
+                              cor: getCorPorTipo(novoTipo),
+                            },
                           }));
                         }}
                         required
@@ -843,833 +913,761 @@ export default function AgendamentosPage() {
                         <MenuItem value="Geral">Geral</MenuItem>
                       </TextField>
                     </Grid>
-                    
                     <Grid item xs={12} md={3}>
-                      <TextField 
-                        type="number" 
-                        label="Duração (min)" 
-                        value={form.atividade.duracao_padrao} 
-                        onChange={(e) => setForm(prev => ({ 
-                          ...prev, 
-                          atividade: { ...prev.atividade, duracao_padrao: Number(e.target.value) }
-                        }))}
+                      <TextField
+                        type="number"
+                        label="Duração (min)"
+                        value={form.atividade.duracao_padrao}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            atividade: { ...prev.atividade, duracao_padrao: Number(e.target.value) },
+                          }))
+                        }
                         required
                         fullWidth
                       />
                     </Grid>
-                    
                     <Grid item xs={12} md={6}>
-                      <TextField 
-                        type="color" 
-                        label="Cor da Atividade" 
-                        value={form.atividade.cor} 
-                        onChange={(e) => setForm(prev => ({ 
-                          ...prev, 
-                          atividade: { ...prev.atividade, cor: e.target.value }
-                        }))}
+                      <TextField
+                        type="color"
+                        label="Cor da atividade"
+                        value={form.atividade.cor}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            atividade: { ...prev.atividade, cor: e.target.value },
+                          }))
+                        }
+                        helperText="Selecione uma cor para destacar este atendimento no calendário"
                         required
                         fullWidth
                       />
                     </Grid>
                   </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
+                </Stack>
+              </CardContent>
+            </Card>
 
-            {/* Alunos Selecionados */}
-            {form.aluno_ids.length > 0 && (
-              <Grid item xs={12}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Alunos selecionados:
+            {form.aluno_ids.length > 0 ? (
+              <Stack spacing={1}>
+                <Typography variant="body2" color="text.secondary">
+                  Alunos selecionados
                 </Typography>
-                {form.aluno_ids.map(id => {
-                  const aluno = alunos.find(a => a.id === id);
-                  return aluno ? (
-                    <Chip key={id} label={aluno.nome} size="small" sx={{ mr: 1, mb: 1 }} />
-                  ) : null;
-                })}
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {form.aluno_ids.map((id) => {
+                    const aluno = alunos.find((a) => a.id === id);
+                    return aluno ? <Chip key={id} label={aluno.nome} size="small" /> : null;
+                  })}
+                </Box>
+              </Stack>
+            ) : null}
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  type="date"
+                  label="Data"
+                  InputLabelProps={{ shrink: true }}
+                  value={form.data}
+                  onChange={(e) => setForm((prev) => ({ ...prev, data: e.target.value }))}
+                  required
+                  fullWidth
+                />
               </Grid>
-            )}
-
-            {/* Data e Hora */}
-            <Grid item xs={12} md={6}>
-              <TextField 
-                type="date" 
-                label="Data" 
-                InputLabelProps={{ shrink: true }} 
-                value={form.data} 
-                onChange={(e) => setForm(prev => ({ ...prev, data: e.target.value }))}
-                required
-                fullWidth
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField 
-                type="time" 
-                label="Hora Início" 
-                InputLabelProps={{ shrink: true }} 
-                value={form.hora_inicio} 
-                onChange={(e) => setForm(prev => ({ ...prev, hora_inicio: e.target.value }))}
-                required
-                fullWidth
-              />
+              <Grid item xs={12} md={6}>
+                <TextField
+                  type="time"
+                  label="Hora de início"
+                  InputLabelProps={{ shrink: true }}
+                  value={form.hora_inicio}
+                  onChange={(e) => setForm((prev) => ({ ...prev, hora_inicio: e.target.value }))}
+                  required
+                  fullWidth
+                />
+              </Grid>
             </Grid>
 
-            {/* Observações */}
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                rows={3}
-                label="Observações"
-                value={form.observacoes}
-                onChange={(e) => setForm(prev => ({ ...prev, observacoes: e.target.value }))}
-                placeholder="Adicione observações sobre o agendamento..."
-              />
-            </Grid>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Observações"
+              value={form.observacoes}
+              onChange={(e) => setForm((prev) => ({ ...prev, observacoes: e.target.value }))}
+              placeholder="Inclua detalhes relevantes sobre o atendimento, como objetivos ou materiais necessários."
+            />
 
-            {/* Recorrência */}
-            <Grid item xs={12}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
               <FormControlLabel
                 control={
                   <Switch
                     checked={form.recorrente}
-                    onChange={(e) => setForm(prev => ({ ...prev, recorrente: e.target.checked }))}
+                    onChange={(e) => setForm((prev) => ({ ...prev, recorrente: e.target.checked }))}
                   />
                 }
-                label="Recorrente (semanal)"
+                label="Repetir semanalmente"
               />
-            </Grid>
-
-            {form.recorrente && (
-              <Grid item xs={12}>
-                <TextField 
-                  type="date" 
-                  label="Data Fim da Recorrência" 
-                  InputLabelProps={{ shrink: true }} 
-                  value={form.recorrencia_fim} 
-                  onChange={(e) => setForm(prev => ({ ...prev, recorrencia_fim: e.target.value }))}
-                  fullWidth
+              {form.recorrente ? (
+                <TextField
+                  type="date"
+                  label="Fim da recorrência"
+                  InputLabelProps={{ shrink: true }}
+                  value={form.recorrencia_fim}
+                  onChange={(e) => setForm((prev) => ({ ...prev, recorrencia_fim: e.target.value }))}
                   required
+                  sx={{ minWidth: { xs: "100%", sm: 220 } }}
                 />
-              </Grid>
-            )}
-          </Grid>
+              ) : null}
+            </Stack>
 
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            O horário de término será calculado automaticamente conforme a duração da atividade.
-          </Typography>
+            <Typography variant="caption" color="text.secondary">
+              O término é calculado automaticamente a partir da duração da atividade.
+            </Typography>
+          </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setModalOpen(false)}>Cancelar</Button>
-          <Button 
-            variant="contained" 
-            onClick={handleCreateAgendamento} 
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <CustomButton variant="outlined" color="inherit" onClick={() => setModalOpen(false)}>
+            Cancelar
+          </CustomButton>
+          <CustomButton
+            variant="contained"
+            onClick={handleCreateAgendamento}
             disabled={loading}
           >
-            {loading ? "Salvando..." : "Criar Agendamento"}
-          </Button>
+            {loading ? "Salvando..." : "Criar agendamento"}
+          </CustomButton>
         </DialogActions>
       </Dialog>
 
-      {/* Modal de Detalhes/Edição */}
+      {/* Modal de Detalhes */}
       <Dialog open={detailModalOpen} onClose={() => setDetailModalOpen(false)} fullWidth maxWidth="lg">
-        <DialogTitle>
-          Detalhes do Agendamento
+        <DialogTitle sx={{ pb: 1 }}>
+          <Stack spacing={0.5}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Detalhes do agendamento
+            </Typography>
+            {selectedEvent ? (
+              <Typography variant="body2" color="text.secondary">
+                {format(new Date(`${selectedEvent.data}T${selectedEvent.hora_inicio}`), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              </Typography>
+            ) : null}
+          </Stack>
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          {selectedEvent && (
-            <Grid container spacing={3}>
-              {/* Informações do Agendamento */}
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom color="primary">
-                      Informações do Agendamento
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <strong>Atividade:</strong> {selectedEvent.atividade?.nome || "N/A"}
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <strong>Tipo:</strong> {selectedEvent.atividade?.tipo || "N/A"}
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <strong>Profissional:</strong> {selectedEvent.profissional?.nome}
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <strong>Setor:</strong> {selectedEvent.profissional?.setor || "N/A"}
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <strong>Especialidade:</strong> {selectedEvent.profissional?.especialidade || "N/A"}
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <strong>Data:</strong> {selectedEvent.data}
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <strong>Horário:</strong> {selectedEvent.hora_inicio} - {selectedEvent.hora_fim}
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <strong>Status:</strong> 
-                      <Chip 
-                        label={selectedEvent.status} 
-                        color={selectedEvent.status === 'confirmado' ? 'success' : 'error'}
-                        size="small" 
-                        sx={{ ml: 1 }}
-                      />
-                    </Typography>
-                    {selectedEvent.observacoes && (
-                      <Typography variant="body1" gutterBottom>
-                        <strong>Observações:</strong> {selectedEvent.observacoes}
+        <DialogContent sx={{ pt: 0 }}>
+          {selectedEvent ? (
+            <Stack spacing={3}>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Card variant="outlined" sx={{ borderRadius: 3 }}>
+                    <CardContent>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                        Informações do atendimento
                       </Typography>
-                    )}
-                    {selectedEvent.recorrente && (
-                      <Typography variant="body1" gutterBottom>
-                        <strong>Recorrente:</strong> Sim (até {selectedEvent.recorrencia_fim})
+                      <Stack spacing={1.5}>
+                        <Typography variant="body2">
+                          <strong>Atividade:</strong> {selectedEvent.atividade?.nome || "Não informado"}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Tipo:</strong> {selectedEvent.atividade?.tipo || "Não informado"}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Profissional:</strong> {selectedEvent.profissional?.nome || "Não informado"}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Setor:</strong> {selectedEvent.profissional?.setor || "Não informado"}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Especialidade:</strong> {selectedEvent.profissional?.especialidade || "Não informado"}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Status:</strong>{" "}
+                          <Chip
+                            label={selectedEvent.status}
+                            color={selectedEvent.status === "confirmado" ? "success" : selectedEvent.status === "cancelado" ? "error" : "default"}
+                            size="small"
+                            sx={{ ml: 1 }}
+                          />
+                        </Typography>
+                        {selectedEvent.recorrente ? (
+                          <Typography variant="body2">
+                            <strong>Recorrente até:</strong> {selectedEvent.recorrencia_fim || "Não informado"}
+                          </Typography>
+                        ) : null}
+                        {selectedEvent.observacoes ? (
+                          <Typography variant="body2">
+                            <strong>Observações:</strong> {selectedEvent.observacoes}
+                          </Typography>
+                        ) : null}
+                        {selectedEvent.motivo_cancelamento ? (
+                          <Typography variant="body2" color="error">
+                            <strong>Motivo do cancelamento:</strong> {selectedEvent.motivo_cancelamento}
+                          </Typography>
+                        ) : null}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Card variant="outlined" sx={{ borderRadius: 3 }}>
+                    <CardContent>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                        Alunos participantes
                       </Typography>
-                    )}
-                    {selectedEvent.motivo_cancelamento && (
-                      <Typography variant="body1" gutterBottom color="error">
-                        <strong>Motivo do cancelamento:</strong> {selectedEvent.motivo_cancelamento}
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Informações dos Alunos */}
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom color="primary">
-                      Alunos Participantes
-                    </Typography>
-                    {selectedEvent.alunos && selectedEvent.alunos.length > 0 ? (
-                      selectedEvent.alunos.map(aluno => (
-                        <Box key={aluno.id} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                          <Typography variant="subtitle1" gutterBottom>
-                            <strong>{aluno.nome}</strong>
-                          </Typography>
-                          <Typography variant="body2" gutterBottom>
-                            <strong>Idade:</strong> {aluno.idade || "N/A"} anos
-                          </Typography>
-                          <Typography variant="body2" gutterBottom>
-                            <strong>Turma:</strong> {aluno.turma || "N/A"}
-                          </Typography>
-                          <Typography variant="body2" gutterBottom>
-                            <strong>Turno:</strong> {aluno.turno || "N/A"}
-                          </Typography>
-                          <Typography variant="body2" gutterBottom>
-                            <strong>Escola Regular:</strong> {aluno.escola_regular || "N/A"}
-                          </Typography>
-                          <Typography variant="body2" gutterBottom>
-                            <strong>Série:</strong> {aluno.serie || "N/A"}
-                          </Typography>
-                          <Typography variant="body2" gutterBottom>
-                            <strong>Cidade:</strong> {aluno.cidade || "N/A"}
-                          </Typography>
-                          <Typography variant="body2" gutterBottom>
-                            <strong>Responsável:</strong> {aluno.responsavel_nome || "N/A"}
-                          </Typography>
-                          <Typography variant="body2" gutterBottom>
-                            <strong>Telefone:</strong> {aluno.responsavel_telefone || "N/A"}
-                          </Typography>
-                          {aluno.observacoes && (
-                            <Typography variant="body2" gutterBottom>
-                              <strong>Observações:</strong> {aluno.observacoes}
-                            </Typography>
-                          )}
-                        </Box>
-                      ))
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        Nenhum aluno associado
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Próximos Agendamentos */}
-              <Grid item xs={12}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom color="primary">
-                      Próximos Agendamentos dos Alunos
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Agendamentos de hoje e amanhã dos alunos participantes:
-                    </Typography>
-                    
-                    {proximosAgendamentos.length > 0 ? (
-                      <Box sx={{ mt: 2 }}>
-                        {proximosAgendamentos.map((agendamento, index) => (
-                          <Box 
-                            key={agendamento.id} 
-                            sx={{ 
-                              mb: 2, 
-                              p: 2, 
-                              border: '1px solid #e0e0e0', 
-                              borderRadius: 1,
-                              backgroundColor: '#f9f9f9'
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                              <Typography variant="subtitle2" color="primary">
-                                <strong>{agendamento.atividade?.nome || "Atividade"}</strong>
+                      <Stack spacing={2}>
+                        {selectedEvent.alunos?.length ? (
+                          selectedEvent.alunos.map((aluno) => (
+                            <Box key={aluno.id} sx={{ p: 2, border: (theme) => `1px solid ${theme.palette.divider}`, borderRadius: 2 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                {aluno.nome}
                               </Typography>
-                              <Chip 
-                                label={agendamento.status} 
-                                color={agendamento.status === 'confirmado' ? 'success' : 'default'}
-                                size="small"
-                              />
+                              <Stack spacing={0.5} mt={1}>
+                                <Typography variant="body2">Idade: {aluno.idade ? `${aluno.idade} anos` : "Não informado"}</Typography>
+                                <Typography variant="body2">Turma: {aluno.turma || "Não informado"}</Typography>
+                                <Typography variant="body2">Turno: {aluno.turno || "Não informado"}</Typography>
+                                <Typography variant="body2">Responsável: {aluno.responsavel_nome || "Não informado"}</Typography>
+                                <Typography variant="body2">Contato: {aluno.responsavel_telefone || "Não informado"}</Typography>
+                                {aluno.observacoes ? (
+                                  <Typography variant="body2">Observações: {aluno.observacoes}</Typography>
+                                ) : null}
+                              </Stack>
                             </Box>
-                            
-                            <Typography variant="body2" gutterBottom>
-                              <strong>Data:</strong> {agendamento.data} às {agendamento.hora_inicio} - {agendamento.hora_fim}
+                          ))
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            Nenhum aluno associado.
+                          </Typography>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12}>
+                  <Card variant="outlined" sx={{ borderRadius: 3 }}>
+                    <CardContent>
+                      <Stack spacing={1.5}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          Próximos agendamentos dos alunos
+                        </Typography>
+                        {proximosAgendamentos.length ? (
+                          <Stack spacing={1.5}>
+                            {proximosAgendamentos.map((agendamento) => (
+                              <Box
+                                key={agendamento.id}
+                                sx={{
+                                  p: 2,
+                                  borderRadius: 2,
+                                  border: (theme) => `1px solid ${theme.palette.divider}`,
+                                  backgroundColor: (theme) => theme.palette.background.default,
+                                }}
+                              >
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                    {agendamento.atividade?.nome || "Atividade"}
+                                  </Typography>
+                                  <Chip
+                                    label={agendamento.status}
+                                    color={agendamento.status === "confirmado" ? "success" : "default"}
+                                    size="small"
+                                  />
+                                </Stack>
+                                <Typography variant="body2">Data: {agendamento.data} — {agendamento.hora_inicio} até {agendamento.hora_fim}</Typography>
+                                <Typography variant="body2">Profissional: {agendamento.profissional?.nome || "Não informado"}</Typography>
+                                <Typography variant="body2">
+                                  Alunos: {agendamento.alunos?.map((aluno) => aluno.nome).join(", ") || "Não informado"}
+                                </Typography>
+                                {agendamento.atividade?.tipo ? (
+                                  <Typography variant="body2">Tipo: {agendamento.atividade.tipo}</Typography>
+                                ) : null}
+                              </Box>
+                            ))}
+                          </Stack>
+                        ) : (
+                          <Box sx={{ p: 3, textAlign: "center", borderRadius: 2, border: (theme) => `1px dashed ${theme.palette.divider}` }}>
+                            <Typography variant="body2" color="text.secondary">
+                              Nenhum outro agendamento encontrado para estes alunos nos próximos dias.
                             </Typography>
-                            
-                            <Typography variant="body2" gutterBottom>
-                              <strong>Profissional:</strong> {agendamento.profissional?.nome}
-                            </Typography>
-                            
-                            <Typography variant="body2" gutterBottom>
-                              <strong>Alunos:</strong> {agendamento.alunos?.map(a => a.nome).join(", ") || "N/A"}
-                            </Typography>
-                            
-                            {agendamento.atividade?.tipo && (
-                              <Typography variant="body2" gutterBottom>
-                                <strong>Tipo:</strong> {agendamento.atividade.tipo}
-                              </Typography>
-                            )}
                           </Box>
-                        ))}
-                      </Box>
-                    ) : (
-                      <Box sx={{ mt: 2, p: 3, textAlign: 'center', backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Nenhum agendamento futuro encontrado para estes alunos.
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                          Você pode criar novos agendamentos clicando em "Criar Agendamento".
-                        </Typography>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
               </Grid>
-            </Grid>
-          )}
+            </Stack>
+          ) : null}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetailModalOpen(false)}>Fechar</Button>
-          <Button 
-            variant="outlined" 
-            color="primary"
-            onClick={handleEditAgendamento}
-          >
-            Editar Agendamento
-          </Button>
-          <Button 
-            variant="contained" 
-            color="error"
-            onClick={handleCancelAgendamento}
-          >
-            Cancelar Agendamento
-          </Button>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <CustomButton variant="outlined" color="inherit" onClick={() => setDetailModalOpen(false)}>
+            Fechar
+          </CustomButton>
+          <CustomButton variant="outlined" onClick={handleEditAgendamento}>
+            Editar agendamento
+          </CustomButton>
+          <CustomButton variant="contained" color="error" onClick={handleCancelAgendamento}>
+            Cancelar agendamento
+          </CustomButton>
         </DialogActions>
       </Dialog>
 
       {/* Modal de Edição */}
       <Dialog open={editModalOpen} onClose={() => setEditModalOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>
-          Editar Agendamento
+        <DialogTitle sx={{ pb: 1 }}>
+          <Stack spacing={0.5}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Editar agendamento
+            </Typography>
+            {selectedEvent ? (
+              <Typography variant="body2" color="text.secondary">
+                {format(new Date(`${selectedEvent.data}T${selectedEvent.hora_inicio}`), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              </Typography>
+            ) : null}
+          </Stack>
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Grid container spacing={2}>
-            {/* Data e Horário */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                type="date"
-                label="Data"
-                value={editForm.data || ""}
-                onChange={(e) => setEditForm(prev => ({ ...prev, data: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                type="time"
-                label="Horário de Início"
-                value={editForm.hora_inicio || ""}
-                onChange={(e) => setEditForm(prev => ({ ...prev, hora_inicio: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-
-            {/* Profissional */}
-            <Grid item xs={12} md={6}>
-              <Autocomplete
-                options={profissionais}
-                getOptionLabel={(option) => option.nome}
-                value={profissionais.find(p => p.nome === editForm.profissional_nome) || null}
-                onChange={(event, newValue) => {
-                  setEditForm(prev => ({ ...prev, profissional_nome: newValue?.nome || "" }));
-                }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Profissional" required />
-                )}
-              />
-            </Grid>
-
-            {/* Alunos */}
-            <Grid item xs={12} md={6}>
-              <Autocomplete
-                multiple
-                options={alunos}
-                getOptionLabel={(option) => option.nome}
-                value={alunos.filter(a => editForm.aluno_ids?.includes(a.id))}
-                onChange={(event, newValue) => {
-                  setEditForm(prev => ({ ...prev, aluno_ids: newValue.map(a => a.id) }));
-                }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Alunos" required />
-                )}
-              />
-            </Grid>
-
-            {/* Atividade */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Nome da Atividade"
-                value={editForm.atividade?.nome || ""}
-                onChange={(e) => setEditForm(prev => ({ 
-                  ...prev, 
-                  atividade: { ...prev.atividade, nome: e.target.value }
-                }))}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                select
-                label="Tipo"
-                value={editForm.atividade?.tipo || ""}
-                onChange={(e) => {
-                  const novoTipo = e.target.value;
-                  setEditForm(prev => ({ 
-                    ...prev, 
-                    atividade: { 
-                      ...prev.atividade, 
-                      tipo: novoTipo,
-                      cor: getCorPorTipo(novoTipo)
-                    }
-                  }));
-                }}
-              >
-                <MenuItem value="Fisioterapia">Fisioterapia</MenuItem>
-                <MenuItem value="Fonoaudiologia">Fonoaudiologia</MenuItem>
-                <MenuItem value="Psicologia">Psicologia</MenuItem>
-                <MenuItem value="Terapia Ocupacional">Terapia Ocupacional</MenuItem>
-                <MenuItem value="Nutrição">Nutrição</MenuItem>
-                <MenuItem value="Psicomotricidade">Psicomotricidade</MenuItem>
-                <MenuItem value="Musicoterapia">Musicoterapia</MenuItem>
-                <MenuItem value="Equoterapia">Equoterapia</MenuItem>
-                <MenuItem value="Geral">Geral</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Duração (min)"
-                value={editForm.atividade?.duracao_padrao || 60}
-                onChange={(e) => setEditForm(prev => ({ 
-                  ...prev, 
-                  atividade: { ...prev.atividade, duracao_padrao: parseInt(e.target.value) || 60 }
-                }))}
-              />
-            </Grid>
-
-            {/* Observações */}
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                rows={3}
-                label="Observações"
-                value={editForm.observacoes || ""}
-                onChange={(e) => setEditForm(prev => ({ ...prev, observacoes: e.target.value }))}
-                placeholder="Adicione observações sobre o agendamento..."
-              />
-            </Grid>
-
-            {/* Recorrência */}
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={editForm.recorrente || false}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, recorrente: e.target.checked }))}
-                  />
-                }
-                label="Agendamento Recorrente"
-              />
-            </Grid>
-            {editForm.recorrente && (
+        <DialogContent sx={{ pt: 0 }}>
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   type="date"
-                  label="Data de Término da Recorrência"
-                  value={editForm.recorrencia_fim || ""}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, recorrencia_fim: e.target.value }))}
+                  label="Data"
+                  value={editForm.data || ""}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, data: e.target.value }))}
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
-            )}
-          </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="time"
+                  label="Hora de início"
+                  value={editForm.hora_inicio || ""}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, hora_inicio: e.target.value }))}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Autocomplete
+                  options={profissionais}
+                  getOptionLabel={(option) => option.nome}
+                  value={profissionais.find((p) => p.nome === editForm.profissional_nome) || null}
+                  onChange={(_event, newValue) => {
+                    setEditForm((prev) => ({ ...prev, profissional_nome: newValue?.nome || "" }));
+                  }}
+                  renderInput={(params) => <TextField {...params} label="Profissional" required />}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Autocomplete
+                  multiple
+                  options={alunos}
+                  getOptionLabel={(option) => option.nome}
+                  value={alunos.filter((a) => editForm.aluno_ids?.includes(a.id))}
+                  onChange={(_event, newValue) => {
+                    setEditForm((prev) => ({ ...prev, aluno_ids: newValue.map((aluno) => aluno.id) }));
+                  }}
+                  renderInput={(params) => <TextField {...params} label="Alunos" required />}
+                />
+              </Grid>
+            </Grid>
+
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Nome da atividade"
+                      value={editForm.atividade?.nome || ""}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          atividade: { ...prev.atividade, nome: e.target.value },
+                        }))
+                      }
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <TextField
+                      fullWidth
+                      select
+                      label="Tipo"
+                      value={editForm.atividade?.tipo || ""}
+                      onChange={(e) => {
+                        const novoTipo = e.target.value;
+                        setEditForm((prev) => ({
+                          ...prev,
+                          atividade: {
+                            ...prev.atividade,
+                            tipo: novoTipo,
+                            cor: getCorPorTipo(novoTipo),
+                          },
+                        }));
+                      }}
+                    >
+                      <MenuItem value="Fisioterapia">Fisioterapia</MenuItem>
+                      <MenuItem value="Fonoaudiologia">Fonoaudiologia</MenuItem>
+                      <MenuItem value="Psicologia">Psicologia</MenuItem>
+                      <MenuItem value="Terapia Ocupacional">Terapia Ocupacional</MenuItem>
+                      <MenuItem value="Nutrição">Nutrição</MenuItem>
+                      <MenuItem value="Psicomotricidade">Psicomotricidade</MenuItem>
+                      <MenuItem value="Musicoterapia">Musicoterapia</MenuItem>
+                      <MenuItem value="Equoterapia">Equoterapia</MenuItem>
+                      <MenuItem value="Geral">Geral</MenuItem>
+                    </TextField>
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Duração (min)"
+                      value={editForm.atividade?.duracao_padrao || 60}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          atividade: { ...prev.atividade, duracao_padrao: parseInt(e.target.value, 10) || 60 },
+                        }))
+                      }
+                    />
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Observações"
+              value={editForm.observacoes || ""}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, observacoes: e.target.value }))}
+              placeholder="Inclua detalhes adicionais sobre o atendimento."
+            />
+
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={editForm.recorrente || false}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, recorrente: e.target.checked }))}
+                  />
+                }
+                label="Agendamento recorrente"
+              />
+              {editForm.recorrente ? (
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Fim da recorrência"
+                  value={editForm.recorrencia_fim || ""}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, recorrencia_fim: e.target.value }))}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: { xs: "100%", sm: 220 } }}
+                />
+              ) : null}
+            </Stack>
+          </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditModalOpen(false)}>Cancelar</Button>
-          <Button 
-            variant="contained" 
-            onClick={handleSaveEdit} 
-            disabled={loading}
-          >
-            {loading ? "Salvando..." : "Salvar Alterações"}
-          </Button>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <CustomButton variant="outlined" color="inherit" onClick={() => setEditModalOpen(false)}>
+            Cancelar
+          </CustomButton>
+          <CustomButton variant="contained" onClick={handleSaveEdit} disabled={loading}>
+            {loading ? "Salvando..." : "Salvar alterações"}
+          </CustomButton>
         </DialogActions>
       </Dialog>
 
       {/* Modal de Cancelamento */}
       <Dialog open={cancelModalOpen} onClose={() => setCancelModalOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>
-          Cancelar Agendamento
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Cancelar agendamento
+          </Typography>
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Motivo do Cancelamento"
-                multiline
-                rows={3}
-                value={cancelForm.motivo}
-                onChange={(e) => setCancelForm(prev => ({ ...prev, motivo: e.target.value }))}
-                required
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                select
-                label="Tipo de Cancelamento"
-                value={cancelForm.tipo}
-                onChange={(e) => setCancelForm(prev => ({ ...prev, tipo: e.target.value }))}
-              >
-                <MenuItem value="only">Apenas este agendamento</MenuItem>
-                <MenuItem value="future">Este e todos os futuros (se recorrente)</MenuItem>
-              </TextField>
-            </Grid>
-          </Grid>
+        <DialogContent sx={{ pt: 0 }}>
+          <Stack spacing={3}>
+            <Typography variant="body2" color="text.secondary">
+              Informe o motivo do cancelamento e escolha se deseja cancelar apenas este compromisso ou toda a sequência futura.
+            </Typography>
+            <TextField
+              fullWidth
+              label="Motivo do cancelamento"
+              multiline
+              rows={3}
+              value={cancelForm.motivo}
+              onChange={(e) => setCancelForm((prev) => ({ ...prev, motivo: e.target.value }))}
+              required
+            />
+            <TextField
+              fullWidth
+              select
+              label="Escopo do cancelamento"
+              value={cancelForm.tipo}
+              onChange={(e) => setCancelForm((prev) => ({ ...prev, tipo: e.target.value }))}
+            >
+              <MenuItem value="only">Apenas este agendamento</MenuItem>
+              <MenuItem value="future">Este e os próximos (se recorrente)</MenuItem>
+            </TextField>
+          </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCancelModalOpen(false)}>Cancelar</Button>
-          <Button 
-            variant="contained" 
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <CustomButton variant="outlined" color="inherit" onClick={() => setCancelModalOpen(false)}>
+            Voltar
+          </CustomButton>
+          <CustomButton
+            variant="contained"
             color="error"
-            onClick={handleConfirmCancel} 
-            disabled={loading}
+            onClick={handleConfirmCancel}
+            disabled={loading || !cancelForm.motivo.trim()}
           >
-            {loading ? "Cancelando..." : "Confirmar Cancelamento"}
-          </Button>
+            {loading ? "Cancelando..." : "Confirmar cancelamento"}
+          </CustomButton>
         </DialogActions>
       </Dialog>
 
       {/* Modal de Exportação PDF */}
       <Dialog open={exportModalOpen} onClose={() => setExportModalOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>
-          Exportar Agenda em PDF
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Exportar agenda em PDF
+          </Typography>
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Grid container spacing={3}>
-            {/* Seleção de Semana */}
-            <Grid item xs={12}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    📅 Período da Exportação
+        <DialogContent sx={{ pt: 0 }}>
+          <Stack spacing={3}>
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Stack spacing={2}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Período da exportação
                   </Typography>
-                  
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <TextField
-                      type="date"
-                      label="Semana para Exportação"
-                      value={selectedWeekForExport}
-                      onChange={(e) => {
-                        // Garantir que sempre seja uma segunda-feira
-                        const selectedDate = new Date(e.target.value);
-                        const dayOfWeek = selectedDate.getDay();
-                        const monday = new Date(selectedDate);
-                        monday.setDate(selectedDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-                        setSelectedWeekForExport(monday.toISOString().split('T')[0]);
+                  <TextField
+                    type="date"
+                    label="Semana de referência"
+                    value={selectedWeekForExport}
+                    onChange={(e) => {
+                      const selectedDate = new Date(e.target.value);
+                      if (Number.isNaN(selectedDate.getTime())) return;
+                      const dayOfWeek = selectedDate.getDay();
+                      const monday = new Date(selectedDate);
+                      monday.setDate(selectedDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+                      setSelectedWeekForExport(monday.toISOString().split("T")[0]);
+                    }}
+                    InputLabelProps={{ shrink: true }}
+                    helperText={`Período gerado: ${formatWeekPeriod(selectedWeekForExport)}`}
+                    sx={{ maxWidth: 260 }}
+                  />
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    <CustomButton
+                      variant="outlined"
+                      color="inherit"
+                      onClick={() => {
+                        const currentWeek = new Date(selectedWeekForExport);
+                        currentWeek.setDate(currentWeek.getDate() - 7);
+                        setSelectedWeekForExport(currentWeek.toISOString().split("T")[0]);
                       }}
-                      InputLabelProps={{ shrink: true }}
-                      fullWidth
-                      helperText={`Período: ${formatWeekPeriod(selectedWeekForExport)}`}
+                    >
+                      Semana anterior
+                    </CustomButton>
+                    <CustomButton
+                      variant="outlined"
+                      color="inherit"
+                      onClick={() => {
+                        const today = new Date();
+                        const dayOfWeek = today.getDay();
+                        const monday = new Date(today);
+                        monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+                        setSelectedWeekForExport(monday.toISOString().split("T")[0]);
+                      }}
+                    >
+                      Semana atual
+                    </CustomButton>
+                    <CustomButton
+                      variant="outlined"
+                      color="inherit"
+                      onClick={() => {
+                        const currentWeek = new Date(selectedWeekForExport);
+                        currentWeek.setDate(currentWeek.getDate() + 7);
+                        setSelectedWeekForExport(currentWeek.toISOString().split("T")[0]);
+                      }}
+                    >
+                      Próxima semana
+                    </CustomButton>
+                  </Stack>
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                  Filtros opcionais
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Autocomplete
+                      options={profissionais}
+                      getOptionLabel={(option) => option.nome}
+                      value={profissionais.find((p) => p.nome === filters.profissional_nome) || null}
+                      onChange={(_event, newValue) => {
+                        setFilters((prev) => ({ ...prev, profissional_nome: newValue?.nome || "" }));
+                      }}
+                      renderInput={(params) => <TextField {...params} label="Profissional" placeholder="Todos" />}
                     />
-                    
-                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => {
-                          const currentWeek = new Date(selectedWeekForExport);
-                          currentWeek.setDate(currentWeek.getDate() - 7);
-                          setSelectedWeekForExport(currentWeek.toISOString().split('T')[0]);
-                        }}
-                      >
-                        ← Semana Anterior
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => {
-                          const today = new Date();
-                          const dayOfWeek = today.getDay();
-                          const monday = new Date(today);
-                          monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-                          setSelectedWeekForExport(monday.toISOString().split('T')[0]);
-                        }}
-                      >
-                        Semana Atual
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => {
-                          const currentWeek = new Date(selectedWeekForExport);
-                          currentWeek.setDate(currentWeek.getDate() + 7);
-                          setSelectedWeekForExport(currentWeek.toISOString().split('T')[0]);
-                        }}
-                      >
-                        Próxima Semana →
-                      </Button>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* Filtros de Exportação */}
-            <Grid item xs={12}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    🔍 Filtros de Exportação
-                  </Typography>
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <Autocomplete
-                        options={profissionais}
-                        getOptionLabel={(option) => option.nome}
-                        value={profissionais.find(p => p.nome === filters.profissional_nome) || null}
-                        onChange={(event, newValue) => {
-                          setFilters(prev => ({ ...prev, profissional_nome: newValue?.nome || "" }));
-                        }}
-                        renderInput={(params) => (
-                          <TextField {...params} label="Profissional (opcional)" variant="outlined" />
-                        )}
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <Autocomplete
-                        options={alunos}
-                        getOptionLabel={(option) => option.nome}
-                        value={alunos.find(a => a.id === Number(filters.aluno_id)) || null}
-                        onChange={(event, newValue) => {
-                          setFilters(prev => ({ ...prev, aluno_id: newValue?.id || "" }));
-                        }}
-                        renderInput={(params) => (
-                          <TextField {...params} label="Aluno (opcional)" variant="outlined" />
-                        )}
-                      />
-                    </Grid>
                   </Grid>
-                  
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                    💡 <strong>Dica:</strong> Deixe os filtros vazios para exportar todos os agendamentos da semana selecionada.
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* Opções de Formatação */}
-            <Grid item xs={12}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    ⚙️ Opções de Formatação
-                  </Typography>
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={exportOptions.incluirObservacoes}
-                            onChange={(e) => setExportOptions(prev => ({ 
-                              ...prev, 
-                              incluirObservacoes: e.target.checked 
-                            }))}
-                          />
-                        }
-                        label="Incluir Observações dos Agendamentos"
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={exportOptions.incluirDetalhesAlunos}
-                            onChange={(e) => setExportOptions(prev => ({ 
-                              ...prev, 
-                              incluirDetalhesAlunos: e.target.checked 
-                            }))}
-                          />
-                        }
-                        label="Incluir Detalhes dos Alunos"
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={exportOptions.incluirContatos}
-                            onChange={(e) => setExportOptions(prev => ({ 
-                              ...prev, 
-                              incluirContatos: e.target.checked 
-                            }))}
-                          />
-                        }
-                        label="Incluir Contatos dos Responsáveis"
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={exportOptions.agruparPorProfissional}
-                            onChange={(e) => setExportOptions(prev => ({ 
-                              ...prev, 
-                              agruparPorProfissional: e.target.checked 
-                            }))}
-                          />
-                        }
-                        label="Agrupar por Profissional"
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={exportOptions.incluirEstatisticas}
-                            onChange={(e) => setExportOptions(prev => ({ 
-                              ...prev, 
-                              incluirEstatisticas: e.target.checked 
-                            }))}
-                          />
-                        }
-                        label="Incluir Estatísticas da Semana"
-                      />
-                    </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Autocomplete
+                      options={alunos}
+                      getOptionLabel={(option) => option.nome}
+                      value={alunos.find((a) => a.id === Number(filters.aluno_id)) || null}
+                      onChange={(_event, newValue) => {
+                        setFilters((prev) => ({ ...prev, aluno_id: newValue?.id || "" }));
+                      }}
+                      renderInput={(params) => <TextField {...params} label="Aluno" placeholder="Todos" />}
+                    />
                   </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
+                </Grid>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                  Deixe os filtros vazios para exportar todos os agendamentos da semana selecionada.
+                </Typography>
+              </CardContent>
+            </Card>
 
-            {/* Resumo da Exportação */}
-            <Grid item xs={12}>
-              <Card variant="outlined" sx={{ backgroundColor: '#f5f5f5' }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    📋 Resumo da Exportação
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                  Conteúdo do relatório
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={exportOptions.incluirObservacoes}
+                          onChange={(e) =>
+                            setExportOptions((prev) => ({ ...prev, incluirObservacoes: e.target.checked }))
+                          }
+                        />
+                      }
+                      label="Incluir observações dos agendamentos"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={exportOptions.incluirDetalhesAlunos}
+                          onChange={(e) =>
+                            setExportOptions((prev) => ({ ...prev, incluirDetalhesAlunos: e.target.checked }))
+                          }
+                        />
+                      }
+                      label="Incluir detalhes dos alunos"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={exportOptions.incluirContatos}
+                          onChange={(e) =>
+                            setExportOptions((prev) => ({ ...prev, incluirContatos: e.target.checked }))
+                          }
+                        />
+                      }
+                      label="Incluir contatos dos responsáveis"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={exportOptions.agruparPorProfissional}
+                          onChange={(e) =>
+                            setExportOptions((prev) => ({ ...prev, agruparPorProfissional: e.target.checked }))
+                          }
+                        />
+                      }
+                      label="Agrupar por profissional"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={exportOptions.incluirEstatisticas}
+                          onChange={(e) =>
+                            setExportOptions((prev) => ({ ...prev, incluirEstatisticas: e.target.checked }))
+                          }
+                        />
+                      }
+                      label="Incluir estatísticas da semana"
+                    />
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+
+            <Card variant="outlined" sx={{ borderRadius: 3, backgroundColor: (theme) => theme.palette.background.default }}>
+              <CardContent>
+                <Stack spacing={1}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Resumo antes de exportar
                   </Typography>
-                  
-                  <Typography variant="body2" gutterBottom>
+                  <Typography variant="body2">
                     <strong>Período:</strong> {formatWeekPeriod(selectedWeekForExport)}
                   </Typography>
-                  
-                  <Typography variant="body2" gutterBottom>
-                    <strong>Filtros:</strong> {
-                      filters.profissional_nome || filters.aluno_id 
-                        ? `${filters.profissional_nome ? `Profissional: ${filters.profissional_nome}` : ''}${filters.profissional_nome && filters.aluno_id ? ' | ' : ''}${filters.aluno_id ? `Aluno: ${alunos.find(a => a.id === Number(filters.aluno_id))?.nome || 'ID ' + filters.aluno_id}` : ''}`
-                        : 'Todos os agendamentos'
-                    }
+                  <Typography variant="body2">
+                    <strong>Filtros:</strong> {filters.profissional_nome || filters.aluno_id ? `${filters.profissional_nome ? `Profissional: ${filters.profissional_nome}` : ""}${filters.profissional_nome && filters.aluno_id ? " | " : ""}${filters.aluno_id ? `Aluno: ${alunos.find((a) => a.id === Number(filters.aluno_id))?.nome || `ID ${filters.aluno_id}`}` : ""}` : "Todos os agendamentos"}
                   </Typography>
-                  
-                  <Typography variant="body2" gutterBottom>
+                  <Typography variant="body2">
                     <strong>Opções:</strong> {
                       [
-                        exportOptions.incluirObservacoes ? 'Observações' : null,
-                        exportOptions.incluirDetalhesAlunos ? 'Detalhes dos Alunos' : null,
-                        exportOptions.incluirContatos ? 'Contatos' : null,
-                        exportOptions.agruparPorProfissional ? 'Agrupado por Profissional' : null,
-                        exportOptions.incluirEstatisticas ? 'Estatísticas' : null
-                      ].filter(Boolean).join(', ') || 'Nenhuma opção adicional'
+                        exportOptions.incluirObservacoes ? "Observações" : null,
+                        exportOptions.incluirDetalhesAlunos ? "Detalhes dos alunos" : null,
+                        exportOptions.incluirContatos ? "Contatos" : null,
+                        exportOptions.agruparPorProfissional ? "Agrupado por profissional" : null,
+                        exportOptions.incluirEstatisticas ? "Estatísticas" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "Nenhuma opção extra selecionada"
                     }
                   </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-          </Grid>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Stack>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: "space-between", px: 3, py: 2 }}>
-          <Box>
-            <Button 
-              variant="outlined" 
-              size="small"
-              onClick={() => {
-                setExportOptions({
-                  incluirObservacoes: true,
-                  incluirDetalhesAlunos: true,
-                  incluirContatos: true,
-                  agruparPorProfissional: false,
-                  incluirEstatisticas: true,
-                  formato: "semanal"
-                });
-              }}
-            >
-              🔄 Restaurar Padrões
-            </Button>
-          </Box>
-          
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button onClick={() => setExportModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button 
-              variant="contained" 
-              onClick={handleExportPDF}
-              disabled={loading}
-              startIcon={<span>📄</span>}
-              sx={{ minWidth: 200 }}
-            >
-              {loading ? "Gerando PDF..." : "Gerar e Baixar PDF"}
-            </Button>
-          </Box>
+        <DialogActions sx={{ justifyContent: "space-between", px: 3, pb: 3 }}>
+          <CustomButton
+            variant="outlined"
+            color="inherit"
+            onClick={() => {
+              setExportOptions({
+                incluirObservacoes: true,
+                incluirDetalhesAlunos: true,
+                incluirContatos: true,
+                agruparPorProfissional: false,
+                incluirEstatisticas: true,
+                formato: "semanal",
+              });
+            }}
+          >
+            Restaurar padrões
+          </CustomButton>
+          <Stack direction="row" spacing={1}>
+            <CustomButton variant="outlined" color="inherit" onClick={() => setExportModalOpen(false)}>
+              Voltar
+            </CustomButton>
+            <CustomButton variant="contained" onClick={handleExportPDF} disabled={loading}>
+              {loading ? "Gerando PDF..." : "Gerar PDF"}
+            </CustomButton>
+          </Stack>
         </DialogActions>
       </Dialog>
     </AppShell>

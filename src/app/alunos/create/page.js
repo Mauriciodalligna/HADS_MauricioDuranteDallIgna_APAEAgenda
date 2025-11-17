@@ -5,9 +5,12 @@ import AppShell from "@/components/AppShell";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import Grid from "@mui/material/Grid";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
 import FormInput from "@/components/FormInput";
 import CustomButton from "@/components/CustomButton";
 import MenuItem from "@mui/material/MenuItem";
+import CircularProgress from "@mui/material/CircularProgress";
 import { useRouter } from "next/navigation";
 
 export default function AlunosCreatePage() {
@@ -63,47 +66,71 @@ export default function AlunosCreatePage() {
 
   return (
     <AppShell>
-      <form onSubmit={handleSubmit} style={{ maxWidth: 900 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>Cadastrar Aluno</Typography>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <FormInput label="Nome" value={form.nome} onChange={updateField("nome")} required />
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <FormInput type="number" label="Idade" value={form.idade} onChange={updateField("idade")} />
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <FormInput label="Turma" value={form.turma} onChange={updateField("turma")} required />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <FormInput select label="Turno" value={form.turno} onChange={updateField("turno")} required>
-              <MenuItem value="manhã">Manhã</MenuItem>
-              <MenuItem value="tarde">Tarde</MenuItem>
-              <MenuItem value="noite">Noite</MenuItem>
-            </FormInput>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <FormInput label="Cidade" value={form.cidade} onChange={updateField("cidade")} />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <FormInput label="Escola regular" value={form.escola_regular} onChange={updateField("escola_regular")} />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <FormInput label="Série" value={form.serie} onChange={updateField("serie")} />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormInput label="Responsável" value={form.responsavel_nome} onChange={updateField("responsavel_nome")} />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormInput label="Telefone do responsável" value={form.responsavel_telefone} onChange={updateField("responsavel_telefone")} />
-          </Grid>
-          <Grid item xs={12}>
-            <FormInput label="Observações" value={form.observacoes} onChange={updateField("observacoes")} multiline minRows={3} />
-          </Grid>
-        </Grid>
-        <CustomButton type="submit" sx={{ mt: 2 }} disabled={loading}>Salvar</CustomButton>
-      </form>
+      <Stack spacing={3}>
+        <Stack spacing={1}>
+          <Typography variant="h4" sx={{ fontWeight: 600 }}>
+            Cadastrar aluno
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Preencha os dados do novo aluno para incluí-lo na base de estudantes.
+          </Typography>
+        </Stack>
+
+        {error && (
+          <Alert severity="error" variant="outlined">
+            {error}
+          </Alert>
+        )}
+
+        <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: { xs: 3, md: 4 }, borderRadius: 4 }}>
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <FormInput label="Nome" value={form.nome} onChange={updateField("nome")} required />
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <FormInput type="number" label="Idade" value={form.idade} onChange={updateField("idade")} />
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <FormInput label="Turma" value={form.turma} onChange={updateField("turma")} required />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <FormInput select label="Turno" value={form.turno} onChange={updateField("turno")} required>
+                  <MenuItem value="manhã">Manhã</MenuItem>
+                  <MenuItem value="tarde">Tarde</MenuItem>
+                  <MenuItem value="noite">Noite</MenuItem>
+                </FormInput>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <FormInput label="Cidade" value={form.cidade} onChange={updateField("cidade")} />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <FormInput label="Escola regular" value={form.escola_regular} onChange={updateField("escola_regular")} />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <FormInput label="Série" value={form.serie} onChange={updateField("serie")} />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormInput label="Responsável" value={form.responsavel_nome} onChange={updateField("responsavel_nome")} />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormInput label="Telefone do responsável" value={form.responsavel_telefone} onChange={updateField("responsavel_telefone")} />
+              </Grid>
+              <Grid item xs={12}>
+                <FormInput label="Observações" value={form.observacoes} onChange={updateField("observacoes")} multiline minRows={3} />
+              </Grid>
+            </Grid>
+            <Stack direction="row" spacing={2} justifyContent="flex-end">
+              <CustomButton variant="outlined" color="inherit" onClick={() => router.push("/alunos")} disabled={loading}>
+                Cancelar
+              </CustomButton>
+              <CustomButton type="submit" variant="contained" disabled={loading}>
+                {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Salvar aluno"}
+              </CustomButton>
+            </Stack>
+          </Stack>
+        </Paper>
+      </Stack>
     </AppShell>
   );
 }

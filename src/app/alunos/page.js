@@ -1,29 +1,58 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import NextLink from "next/link";
 import AppShell from "@/components/AppShell";
+import CustomButton from "@/components/CustomButton";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
-import CustomButton from "@/components/CustomButton";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
+import TablePagination from "@mui/material/TablePagination";
 import Alert from "@mui/material/Alert";
-import Link from "next/link";
+import Chip from "@mui/material/Chip";
 import Button from "@mui/material/Button";
-import Stack from "@mui/material/Stack";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
+import Grid from "@mui/material/Grid";
+import Divider from "@mui/material/Divider";
+import LinearProgress from "@mui/material/LinearProgress";
+
+const initialFilters = { nome: "", turma: "", turno: "" };
+const DEFAULT_ROWS_PER_PAGE = 10;
+
+function getStoredToken() {
+  if (typeof window === "undefined") return "";
+  return sessionStorage.getItem("token") || localStorage.getItem("token") || "";
+}
+
+function buildQueryString(filters, pagination) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) params.append(key, value);
+  });
+  params.append("offset", String(pagination.offset ?? 0));
+  params.append("limit", String(pagination.limit ?? DEFAULT_ROWS_PER_PAGE));
+  return params.toString();
+}
 
 export default function AlunosListPage() {
   const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState({ nome: "", turma: "", turno: "" });
+  const [filters, setFilters] = useState(initialFilters);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
+  const [total, setTotal] = useState(0);
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({
     nome: "",
@@ -39,152 +68,397 @@ export default function AlunosListPage() {
   });
   const [viewing, setViewing] = useState(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
+      setLoading(true);
       setError("");
-      const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem("token")) || localStorage.getItem("token");
-      const qs = new URLSearchParams(Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== "")));
-      const res = await fetch(`/api/alunos?${qs.toString()}`, {
+      const token = getStoredToken();
+      const qs = buildQueryString(filters, { offset: page * rowsPerPage, limit: rowsPerPage });
+      const res = await fetch(`/api/alunos?${qs}`, {
         headers: { authorization: `Bearer ${token}` },
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
         setError(json?.error || "Falha ao carregar alunos");
+        setData([]);
+        setTotal(0);
         return;
       }
       setData(json.data || []);
+      setTotal(json.total ?? 0);
     } catch (e) {
-      setError("Erro inesperado");
+      setError("Erro inesperado ao carregar alunos.");
+      setData([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
     }
-  }
+  }, [filters, page, rowsPerPage]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
+
+  useEffect(() => {
+    if (total === 0) {
+      if (page !== 0) setPage(0);
+      return;
+    }
+    const maxPage = Math.max(0, Math.ceil(total / rowsPerPage) - 1);
+    if (page > maxPage) {
+      setPage(maxPage);
+    }
+  }, [total, rowsPerPage, page]);
+
+  const handleFilterChange = (field) => (event) => {
+    setFilters((prev) => ({ ...prev, [field]: event.target.value }));
+    setPage(0);
+  };
+
+  const handleEdit = (aluno) => {
+    setEditing(aluno);
+    setEditForm({
+      nome: aluno.nome || "",
+      idade: aluno.idade ?? "",
+      turma: aluno.turma || "",
+      turno: aluno.turno || "",
+      cidade: aluno.cidade || "",
+      escola_regular: aluno.escola_regular || "",
+      serie: aluno.serie || "",
+      responsavel_nome: aluno.responsavel_nome || "",
+      responsavel_telefone: aluno.responsavel_telefone || "",
+      observacoes: aluno.observacoes || "",
+    });
+  };
+
+  const handleSave = async () => {
+    if (!editing) return;
+    try {
+      const token = getStoredToken();
+      const body = {
+        ...editForm,
+        idade: editForm.idade ? Number(editForm.idade) : null,
+      };
+      const res = await fetch(`/api/alunos/${editing.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        setError("Falha ao salvar o aluno. Verifique os dados e tente novamente.");
+        return;
+      }
+      setEditing(null);
+      load();
+    } catch (err) {
+      setError("Erro inesperado ao salvar aluno.");
+    }
+  };
+
+  const handleToggleStatus = async (aluno, action) => {
+    try {
+      const token = getStoredToken();
+      const endpoint = action === "deactivate" ? `/api/alunos/${aluno.id}` : `/api/alunos/${aluno.id}/reactivate`;
+      const res = await fetch(endpoint, {
+        method: action === "deactivate" ? "DELETE" : "POST",
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setError("Não foi possível atualizar o status do aluno.");
+        return;
+      }
+      load();
+    } catch {
+      setError("Erro inesperado ao atualizar status.");
+    }
+  };
 
   return (
     <AppShell>
-      <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>Alunos</Typography>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <TextField label="Nome" value={filters.nome} onChange={(e) => setFilters((f) => ({ ...f, nome: e.target.value }))} />
-        <TextField label="Turma" value={filters.turma} onChange={(e) => setFilters((f) => ({ ...f, turma: e.target.value }))} />
-        <TextField select label="Turno" value={filters.turno} onChange={(e) => setFilters((f) => ({ ...f, turno: e.target.value }))} sx={{ minWidth: 160 }}>
-          <MenuItem value="">Todos</MenuItem>
-          <MenuItem value="manhã">Manhã</MenuItem>
-          <MenuItem value="tarde">Tarde</MenuItem>
-          <MenuItem value="noite">Noite</MenuItem>
-        </TextField>
-        <CustomButton onClick={load} color="primary">Filtrar</CustomButton>
-        <Link href="/alunos/create"><CustomButton color="secondary">Novo Aluno</CustomButton></Link>
-      </div>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>ID</TableCell>
-            <TableCell>Nome</TableCell>
-            <TableCell>Idade</TableCell>
-            <TableCell>Turma</TableCell>
-            <TableCell>Turno</TableCell>
-            <TableCell>Cidade</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell align="right">Ações</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {data.map((a) => (
-            <TableRow key={a.id} hover onClick={() => setViewing(a)} style={{ cursor: "pointer" }}>
-              <TableCell>{a.id}</TableCell>
-              <TableCell>{a.nome}</TableCell>
-              <TableCell>{a.idade ?? '-'}</TableCell>
-              <TableCell>{a.turma ?? '-'}</TableCell>
-              <TableCell>{a.turno ?? '-'}</TableCell>
-              <TableCell>{a.cidade ?? '-'}</TableCell>
-              <TableCell>{a.status ? "Ativo" : "Inativo"}</TableCell>
-              <TableCell align="right">
-                <Stack direction="row" spacing={1}>
-                  <Button size="small" onClick={(e) => {
-                    e.stopPropagation();
-                    setEditing(a);
-                    setEditForm({
-                      nome: a.nome || "",
-                      idade: a.idade ?? "",
-                      turma: a.turma || "",
-                      turno: a.turno || "",
-                      cidade: a.cidade || "",
-                      escola_regular: a.escola_regular || "",
-                      serie: a.serie || "",
-                      responsavel_nome: a.responsavel_nome || "",
-                      responsavel_telefone: a.responsavel_telefone || "",
-                      observacoes: a.observacoes || "",
-                    });
-                  }}>Editar</Button>
-                  {a.status ? (
-                    <Button size="small" color="warning" onClick={async (e) => {
-                      e.stopPropagation();
-                      const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem("token")) || localStorage.getItem("token");
-                      const res = await fetch(`/api/alunos/${a.id}`, { method: "DELETE", headers: { authorization: `Bearer ${token}` } });
-                      if (res.ok) load();
-                    }}>Desativar</Button>
-                  ) : (
-                    <Button size="small" color="success" onClick={async (e) => {
-                      e.stopPropagation();
-                      const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem("token")) || localStorage.getItem("token");
-                      const res = await fetch(`/api/alunos/${a.id}/reactivate`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
-                      if (res.ok) load();
-                    }}>Reativar</Button>
-                  )}
-                </Stack>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <Stack spacing={3}>
+        <Stack spacing={1}>
+          <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "flex-start", sm: "center" }} justifyContent="space-between">
+            <Typography variant="h4" sx={{ fontWeight: 600 }}>
+              Alunos
+            </Typography>
+            <CustomButton
+              component={NextLink}
+              href="/alunos/create"
+              variant="contained"
+              color="primary"
+              size="large"
+            >
+              Novo aluno
+            </CustomButton>
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            Acompanhe a base de estudantes, organize turmas e mantenha os contatos sempre atualizados.
+          </Typography>
+        </Stack>
+
+        {error && (
+          <Alert severity="error" variant="outlined">
+            {error}
+          </Alert>
+        )}
+
+        <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 4 }}>
+          <Stack spacing={2}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Filtros
+            </Typography>
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "flex-end" }}>
+              <TextField
+                label="Nome"
+                value={filters.nome}
+                onChange={handleFilterChange("nome")}
+                fullWidth
+              />
+              <TextField
+                label="Turma"
+                value={filters.turma}
+                onChange={handleFilterChange("turma")}
+                fullWidth
+              />
+              <TextField
+                select
+                label="Turno"
+                value={filters.turno}
+                onChange={handleFilterChange("turno")}
+                sx={{ minWidth: { xs: "100%", md: 180 } }}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                <MenuItem value="manhã">Manhã</MenuItem>
+                <MenuItem value="tarde">Tarde</MenuItem>
+                <MenuItem value="noite">Noite</MenuItem>
+              </TextField>
+              <Stack direction="row" spacing={1}>
+                <CustomButton variant="contained" onClick={load}>
+                  Aplicar
+                </CustomButton>
+                <CustomButton
+                  variant="outlined"
+                  color="inherit"
+                  onClick={() => {
+                    setFilters(initialFilters);
+                    setPage(0);
+                  }}
+                >
+                  Limpar
+                </CustomButton>
+              </Stack>
+            </Stack>
+          </Stack>
+        </Paper>
+
+        <Paper variant="outlined" sx={{ borderRadius: 4, overflow: "hidden" }}>
+          {loading ? <LinearProgress /> : null}
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Nome</TableCell>
+                  <TableCell>Idade</TableCell>
+                  <TableCell>Turma</TableCell>
+                  <TableCell>Turno</TableCell>
+                  <TableCell>Cidade</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell align="right">Ações</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {data.length === 0 && !loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8}>
+                      <Stack spacing={1} alignItems="center" sx={{ py: 6 }}>
+                        <Typography variant="subtitle1">Nenhum aluno encontrado</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Ajuste os filtros ou cadastre um novo aluno para começar.
+                        </Typography>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+                {data.map((aluno) => (
+                  <TableRow
+                    key={aluno.id}
+                    hover
+                    onClick={() => setViewing(aluno)}
+                    sx={{ cursor: "pointer" }}
+                  >
+                    <TableCell>{aluno.id}</TableCell>
+                    <TableCell>{aluno.nome}</TableCell>
+                    <TableCell>{aluno.idade ?? "-"}</TableCell>
+                    <TableCell>{aluno.turma ?? "-"}</TableCell>
+                    <TableCell>{aluno.turno ?? "-"}</TableCell>
+                    <TableCell>{aluno.cidade ?? "-"}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={aluno.status ? "Ativo" : "Inativo"}
+                        color={aluno.status ? "success" : "default"}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          size="small"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleEdit(aluno);
+                          }}
+                        >
+                          Editar
+                        </Button>
+                        {aluno.status ? (
+                          <Button
+                            size="small"
+                            color="warning"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleToggleStatus(aluno, "deactivate");
+                            }}
+                          >
+                            Desativar
+                          </Button>
+                        ) : (
+                          <Button
+                            size="small"
+                            color="success"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleToggleStatus(aluno, "activate");
+                            }}
+                          >
+                            Reativar
+                          </Button>
+                        )}
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            component="div"
+            count={total}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(parseInt(event.target.value, 10));
+              setPage(0);
+            }}
+            labelRowsPerPage="Itens por página"
+            rowsPerPageOptions={[5, 10, 20, 50]}
+            sx={{ px: 2 }}
+          />
+        </Paper>
+      </Stack>
 
       <Dialog open={Boolean(editing)} onClose={() => setEditing(null)} fullWidth maxWidth="md">
         <DialogTitle>Editar aluno</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 160px 160px 160px", gap: 12 }}>
-            <TextField label="Nome" value={editForm.nome} onChange={(e) => setEditForm((f) => ({ ...f, nome: e.target.value }))} />
-            <TextField type="number" label="Idade" value={editForm.idade} onChange={(e) => setEditForm((f) => ({ ...f, idade: e.target.value }))} />
-            <TextField label="Turma" value={editForm.turma} onChange={(e) => setEditForm((f) => ({ ...f, turma: e.target.value }))} />
-            <TextField select label="Turno" value={editForm.turno} onChange={(e) => setEditForm((f) => ({ ...f, turno: e.target.value }))}>
-              <MenuItem value="manhã">Manhã</MenuItem>
-              <MenuItem value="tarde">Tarde</MenuItem>
-              <MenuItem value="noite">Noite</MenuItem>
-            </TextField>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 12 }}>
-            <TextField label="Cidade" value={editForm.cidade} onChange={(e) => setEditForm((f) => ({ ...f, cidade: e.target.value }))} />
-            <TextField label="Escola regular" value={editForm.escola_regular} onChange={(e) => setEditForm((f) => ({ ...f, escola_regular: e.target.value }))} />
-            <TextField label="Série" value={editForm.serie} onChange={(e) => setEditForm((f) => ({ ...f, serie: e.target.value }))} />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
-            <TextField label="Responsável" value={editForm.responsavel_nome} onChange={(e) => setEditForm((f) => ({ ...f, responsavel_nome: e.target.value }))} />
-            <TextField label="Telefone do responsável" value={editForm.responsavel_telefone} onChange={(e) => setEditForm((f) => ({ ...f, responsavel_telefone: e.target.value }))} />
-          </div>
-          <TextField label="Observações" value={editForm.observacoes} onChange={(e) => setEditForm((f) => ({ ...f, observacoes: e.target.value }))} multiline minRows={3} sx={{ mt: 2 }} fullWidth />
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Nome"
+                  value={editForm.nome}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, nome: e.target.value }))}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <TextField
+                  type="number"
+                  label="Idade"
+                  value={editForm.idade}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, idade: e.target.value }))}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <TextField
+                  label="Turma"
+                  value={editForm.turma}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, turma: e.target.value }))}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <TextField
+                  select
+                  label="Turno"
+                  value={editForm.turno}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, turno: e.target.value }))}
+                  fullWidth
+                >
+                  <MenuItem value="manhã">Manhã</MenuItem>
+                  <MenuItem value="tarde">Tarde</MenuItem>
+                  <MenuItem value="noite">Noite</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <TextField
+                  label="Cidade"
+                  value={editForm.cidade}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, cidade: e.target.value }))}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <TextField
+                  label="Escola regular"
+                  value={editForm.escola_regular}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, escola_regular: e.target.value }))}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <TextField
+                  label="Série"
+                  value={editForm.serie}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, serie: e.target.value }))}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Responsável"
+                  value={editForm.responsavel_nome}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, responsavel_nome: e.target.value }))}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Telefone do responsável"
+                  value={editForm.responsavel_telefone}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, responsavel_telefone: e.target.value }))}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Observações"
+                  value={editForm.observacoes}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, observacoes: e.target.value }))}
+                  multiline
+                  minRows={3}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditing(null)}>Cancelar</Button>
-          <Button variant="contained" onClick={async () => {
-            if (!editing) return;
-            const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem("token")) || localStorage.getItem("token");
-            const body = {
-              ...editForm,
-              idade: editForm.idade ? Number(editForm.idade) : null,
-            };
-            const res = await fetch(`/api/alunos/${editing.id}`, {
-              method: "PUT",
-              headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-              body: JSON.stringify(body),
-            });
-            if (res.ok) {
-              setEditing(null);
-              load();
-            }
-          }}>Salvar</Button>
+          <Button variant="contained" onClick={handleSave}>
+            Salvar alterações
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -192,19 +466,54 @@ export default function AlunosListPage() {
         <DialogTitle>Detalhes do aluno</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           {viewing ? (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <TextField label="Nome" value={viewing.nome || "-"} InputProps={{ readOnly: true }} />
-              <TextField label="Idade" value={viewing.idade ?? "-"} InputProps={{ readOnly: true }} />
-              <TextField label="Turma" value={viewing.turma || "-"} InputProps={{ readOnly: true }} />
-              <TextField label="Turno" value={viewing.turno || "-"} InputProps={{ readOnly: true }} />
-              <TextField label="Cidade" value={viewing.cidade || "-"} InputProps={{ readOnly: true }} />
-              <TextField label="Escola regular" value={viewing.escola_regular || "-"} InputProps={{ readOnly: true }} />
-              <TextField label="Série" value={viewing.serie || "-"} InputProps={{ readOnly: true }} />
-              <TextField label="Status" value={viewing.status ? "Ativo" : "Inativo"} InputProps={{ readOnly: true }} />
-              <TextField label="Responsável" value={viewing.responsavel_nome || "-"} InputProps={{ readOnly: true }} />
-              <TextField label="Telefone Resp." value={viewing.responsavel_telefone || "-"} InputProps={{ readOnly: true }} />
-              <TextField label="Observações" value={viewing.observacoes || "-"} InputProps={{ readOnly: true }} multiline minRows={3} sx={{ gridColumn: '1 / -1' }} />
-            </div>
+            <Stack spacing={2}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Nome" value={viewing.nome || "-"} InputProps={{ readOnly: true }} fullWidth />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Idade" value={viewing.idade ?? "-"} InputProps={{ readOnly: true }} fullWidth />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Turma" value={viewing.turma || "-"} InputProps={{ readOnly: true }} fullWidth />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Turno" value={viewing.turno || "-"} InputProps={{ readOnly: true }} fullWidth />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Cidade" value={viewing.cidade || "-"} InputProps={{ readOnly: true }} fullWidth />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Escola regular" value={viewing.escola_regular || "-"} InputProps={{ readOnly: true }} fullWidth />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Série" value={viewing.serie || "-"} InputProps={{ readOnly: true }} fullWidth />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Status" value={viewing.status ? "Ativo" : "Inativo"} InputProps={{ readOnly: true }} fullWidth />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Responsável" value={viewing.responsavel_nome || "-"} InputProps={{ readOnly: true }} fullWidth />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Telefone Resp." value={viewing.responsavel_telefone || "-"} InputProps={{ readOnly: true }} fullWidth />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label="Observações"
+                    value={viewing.observacoes || "-"}
+                    InputProps={{ readOnly: true }}
+                    multiline
+                    minRows={3}
+                    fullWidth
+                  />
+                </Grid>
+              </Grid>
+              <Divider />
+              <Typography variant="caption" color="text.secondary">
+                Consulte o histórico de agendamentos para acompanhar a evolução do aluno.
+              </Typography>
+            </Stack>
           ) : null}
         </DialogContent>
         <DialogActions>

@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Divider from "@mui/material/Divider";
 import PageContainer from "@/components/PageContainer";
 import FormInput from "@/components/FormInput";
 import CustomButton from "@/components/CustomButton";
@@ -60,29 +63,63 @@ export default function ResetPasswordPage() {
 
   return (
     <PageContainer>
-      <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 480, margin: "40px auto", background: "#fff", border: "1px solid #e0e0e0", borderRadius: 8, padding: 32, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-        <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
-          Redefinir Senha
-        </Typography>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        {okMsg && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {okMsg}
-          </Alert>
-        )}
-        {!tokenFromUrl && (
-          <FormInput label="Token" value={token} onChange={(e) => setToken(e.target.value)} required />
-        )}
-        <FormInput type="password" label="Nova senha" value={senha} onChange={(e) => setSenha(e.target.value)} required />
-        <FormInput type="password" label="Confirmar nova senha" value={confirmar} onChange={(e) => setConfirmar(e.target.value)} required />
-        <CustomButton type="submit" variant="contained" color="primary" fullWidth disabled={loading} sx={{ py: 1.2 }}>
-          {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Redefinir"}
-        </CustomButton>
-      </form>
+      <Paper
+        component="form"
+        onSubmit={handleSubmit}
+        sx={(theme) => ({
+          width: "100%",
+          mx: "auto",
+          px: { xs: 3, md: 5 },
+          py: { xs: 4, md: 5 },
+          borderRadius: 4,
+          boxShadow: theme.shadows[3],
+          backdropFilter: "blur(8px)",
+        })}
+      >
+        <Stack spacing={3}>
+          <Stack spacing={1}>
+            <Typography variant="h4" sx={{ fontWeight: 600 }}>
+              Redefinir senha
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Crie uma senha forte: combine letras, números e símbolos para proteger o acesso.
+            </Typography>
+          </Stack>
+          <Divider flexItem />
+          {error && (
+            <Alert severity="error" variant="outlined">
+              {error}
+            </Alert>
+          )}
+          {okMsg && (
+            <Alert severity="success" variant="outlined">
+              {okMsg}
+            </Alert>
+          )}
+          <Stack spacing={2}>
+            {!tokenFromUrl && (
+              <FormInput label="Token de verificação" value={token} onChange={(e) => setToken(e.target.value)} required />
+            )}
+            <FormInput
+              type="password"
+              label="Nova senha"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              required
+            />
+            <FormInput
+              type="password"
+              label="Confirmar nova senha"
+              value={confirmar}
+              onChange={(e) => setConfirmar(e.target.value)}
+              required
+            />
+          </Stack>
+          <CustomButton type="submit" variant="contained" size="large" color="primary" fullWidth disabled={loading}>
+            {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Redefinir senha"}
+          </CustomButton>
+        </Stack>
+      </Paper>
     </PageContainer>
   );
 }

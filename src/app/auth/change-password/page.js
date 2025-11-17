@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Divider from "@mui/material/Divider";
 import CircularProgress from "@mui/material/CircularProgress";
+import FormInput from "@/components/FormInput";
+import CustomButton from "@/components/CustomButton";
+import PageContainer from "@/components/PageContainer";
 import { useRouter } from "next/navigation";
 
 export default function ChangePasswordPage() {
@@ -65,29 +68,68 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <Box sx={{ minHeight: "100dvh", display: "grid", placeItems: "center", p: 2 }}>
-      <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%", maxWidth: 420, p: 4, border: "1px solid #e0e0e0", borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.04)", backgroundColor: "#fff" }}>
-        <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
-          Alterar senha
-        </Typography>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        {okMsg && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {okMsg}
-          </Alert>
-        )}
-        <TextField type="password" label="Senha atual (se aplicável)" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} fullWidth sx={{ mb: 2 }} />
-        <TextField type="password" label="Nova senha" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} fullWidth required sx={{ mb: 2 }} />
-        <TextField type="password" label="Confirmar nova senha" value={confirmar} onChange={(e) => setConfirmar(e.target.value)} fullWidth required sx={{ mb: 2 }} />
-        <Button type="submit" variant="contained" fullWidth disabled={loading} sx={{ py: 1.2 }}>
-          {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Salvar"}
-        </Button>
-      </Box>
-    </Box>
+    <PageContainer>
+      <Paper
+        component="form"
+        onSubmit={handleSubmit}
+        sx={(theme) => ({
+          width: "100%",
+          mx: "auto",
+          px: { xs: 3, md: 5 },
+          py: { xs: 4, md: 5 },
+          borderRadius: 4,
+          boxShadow: theme.shadows[3],
+          backdropFilter: "blur(8px)",
+        })}
+      >
+        <Stack spacing={3}>
+          <Stack spacing={1}>
+            <Typography variant="h4" sx={{ fontWeight: 600 }}>
+              Alterar senha
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Defina uma nova senha para proteger sua conta. Use uma combinação de letras, números e símbolos.
+            </Typography>
+          </Stack>
+          <Divider flexItem />
+          {error && (
+            <Alert severity="error" variant="outlined">
+              {error}
+            </Alert>
+          )}
+          {okMsg && (
+            <Alert severity="success" variant="outlined">
+              {okMsg}
+            </Alert>
+          )}
+          <Stack spacing={2}>
+            <FormInput
+              type="password"
+              label="Senha atual (se aplicável)"
+              value={senhaAtual}
+              onChange={(e) => setSenhaAtual(e.target.value)}
+            />
+            <FormInput
+              type="password"
+              label="Nova senha"
+              value={novaSenha}
+              onChange={(e) => setNovaSenha(e.target.value)}
+              required
+            />
+            <FormInput
+              type="password"
+              label="Confirmar nova senha"
+              value={confirmar}
+              onChange={(e) => setConfirmar(e.target.value)}
+              required
+            />
+          </Stack>
+          <CustomButton type="submit" variant="contained" size="large" color="primary" fullWidth disabled={loading}>
+            {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Salvar nova senha"}
+          </CustomButton>
+        </Stack>
+      </Paper>
+    </PageContainer>
   );
 }
 
